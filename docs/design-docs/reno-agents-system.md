@@ -66,8 +66,11 @@ QA review ──(reviewer fails)──▶ In progress  (with the QA issue list a
 Rules:
 - A PM can re-run the Assessor if more media is added before planning.
 - **Change requests:** while In progress, the PM can add scope lines (e.g. a problem found behind a
-  wall). If the new approved total exceeds the original approval by more than the threshold rule,
-  it goes back through asset-manager approval; work on other lines continues.
+  wall). The change goes to asset-manager approval if **either** the new total exceeds the approval
+  threshold **or** the cumulative increase exceeds `change_request_pct` (default 10%) of the
+  originally approved total. Otherwise the PM's approval is enough. Work on other lines continues
+  meanwhile. An approved change request **re-baselines** the planned finish and budget; the
+  original baseline is kept and shown alongside.
 - Every stage change is recorded in an audit log (who, when, from, to, note).
 
 ---
@@ -124,7 +127,19 @@ QA independent.
   `approved = Y` and `approved_until ≥ today`), labor-rate lookup.
 - **Does:** maps each issue → one or more **scope lines** (task + inventory item + quantity +
   labor). For each line picks a **primary** item and **2 fallbacks** from the same
-  `substitution_group`, ranked by grade fit for the tier and then lead time.
+  `substitution_group`. Primary = approved item matching the `preferred_grade` setting (default
+  `better`); fallbacks = the next 2 approved items in the group, ordered by closeness of grade, then
+  lead time, then cost.
+- **Tiers are impact buckets, not alternative plans.** Every scope line lands in **exactly one**
+  tier based on the impact of the issue it fixes. The unit's full scope = High + Medium + Low. The
+  PM chooses which tiers (and which lines within them) to approve.
+- **Quantities:** the Assessor's measured estimate (e.g. 420 sq ft of wall, 1 dishwasher) is shown
+  as an estimate, and the field inspector / PM confirms or corrects it when reviewing issues.
+  **Code** converts confirmed quantities into purchase units using the inventory's
+  `coverage_per_unit` and `waste_pct` (e.g. 420 sq ft ÷ 350 sq ft/gallon × 1.10 → 2 gallons,
+  rounded up). The Planner picks the item and the measured quantity; it never computes cost.
+- **Labor:** `rate` is per unit of work (per sq ft, per each). Labor cost = rate × quantity.
+  `typical_hours_per_unit` is used only for duration.
 - **Tiers** (rules live in an editable config file; defaults below):
   - **High:** whole-system failures (electrical panel, plumbing main, HVAC), security / safety
     (entry locks, smoke detectors), and cosmetic upgrades that lift lease appeal (full repaint,
@@ -136,6 +151,11 @@ QA independent.
   and estimated duration (computed from labor hours and lead times).
 - **Hard rule:** the Planner never invents an item. If no approved item fits, the line is marked
   **"No approved item — procurement needed"** with a plain description of what is needed.
+  - Such a line can be included in the approved scope only if the PM enters an **estimated cost**;
+    the estimate counts toward tier totals and the approval threshold. A scope with an included
+    line lacking an estimate cannot be submitted.
+  - No PO can be drafted for it until it is resolved: an admin adds a suitable item to the
+    inventory, then the PM links that item to the line (or re-runs the Planner for that line).
 - **PM selection:** the PM picks tiers and can include/exclude individual lines and swap primary for
   a fallback. The selected set is the **approved scope** once approval completes.
 - **Approval threshold:** a setting (default 15,000 in the configured currency per unit). Above it,
@@ -147,12 +167,22 @@ QA independent.
 - **On approval:** builds the **roadmap** — an ordered task list with dependencies using simple trade
   ordering (demo → rough electrical/plumbing → repairs → paint → flooring → fixtures/appliances →
   hardware → clean), planned start/finish per task, material lead times.
+- **Schedule rules (computed by code):** the clock starts on the **approval date**. Durations are
+  in **working days** using a configurable calendar (default Mon–Fri plus a holiday list). Trade
+  steps run in sequence; tasks within the same step run in parallel. A task cannot start before the
+  expected delivery of its materials. Planned finish = end of the last task. Projected finish
+  re-runs the same calculation from today using actual progress and delivery dates.
 - **Purchase orders:** drafts **one PO per supplier** from the approved lines. A PO is a document in
   the app (and downloadable PDF). **Nothing is sent to a supplier automatically.** The PM signs off
   the PO in the app; signing marks it "Issued", after which the PM places the order through their
   normal channel and records the expected delivery date.
 - **Tracking (data entered by PM in the app):** task status (not started / in progress / done /
-  blocked), actual cost per line or invoice, delivery dates, notes, progress media.
+  blocked), delivery dates, notes, progress media, and per scope line:
+  - **actual cost** (materials and labor). The PM may record an invoice and split it across lines
+    (the split must add up to the invoice total); budget tracking always works per line.
+  - **installed item** (SKU), defaulting to the primary. The PM can switch it to an approved
+    fallback or another approved item in the same substitution group; anything else needs a
+    change request.
 - **Daily run** (scheduled, time is a setting, default 07:00 local):
   - Recomputes each active unit's projected finish and projected spend (code).
   - Writes a **portfolio exec summary**: one email covering all active units — counts by stage,
@@ -184,10 +214,13 @@ QA independent.
      (colour, finish, type)? Expressed as % of issues not resolved as planned.
   3. **Budget:** (actual − approved) ÷ approved.
   4. **Timeline:** (actual finish − planned finish) ÷ planned duration.
-  Lines marked "not verifiable from media" are listed separately and count against the reviewer's
-  attention, not as automatic failures.
+  QA compares against the **installed item** recorded by the PM: an approved swap is "done with a
+  different item" and is not a deviation; an installed item that doesn't match what's visible is.
+  Lines marked **"not verifiable from media"** are left out of the percentages and listed
+  separately. If any exist, the result cannot be Pass: it is **Needs evidence**, and the reviewer
+  either requests more `after` media or overrides with a written note.
 - **Output: QA report** — an in-app page plus downloadable bundle (PDF report + approved scope +
-  POs + before/after media index). Contents: overall result (Pass / Flagged), the four deviation
+  POs + before/after media index). Contents: overall result (Pass / Flagged / Needs evidence), the four deviation
   figures, per-line verdicts with side-by-side before/after evidence, list of deviations over 10%,
   and recommended rework items.
 - The **QA reviewer** makes the final call (Pass → Ready to lease; Fail → back to In progress with
@@ -204,10 +237,12 @@ replace CSV later.
 
 **`inventory.csv` columns:** `sku, category, subcategory, item_name, brand, model, spec, unit,
 unit_cost, currency, supplier, lead_time_days, grade (good|better|best), substitution_group,
-approved (Y|N), approved_until (YYYY-MM-DD)`
+coverage_per_unit, coverage_unit, waste_pct, approved (Y|N), approved_until (YYYY-MM-DD)`
+(e.g. paint: `coverage_per_unit = 350`, `coverage_unit = sq_ft`, `waste_pct = 10`; a dishwasher:
+`1`, `each`, `0`.)
 
 **`labor_rates.csv` columns:** `task_code, category, task_name, unit, rate, currency,
-typical_hours_per_unit, trade`
+typical_hours_per_unit, trade` — `rate` is per `unit` of work.
 
 The repo ships **sample data with fictional brands, suppliers and prices** — about 60 inventory
 items across paint, flooring, appliances, fixtures, hardware, lighting, electrical, plumbing and
@@ -231,6 +266,11 @@ cabinetry, every substitution group having at least 3 approved items — plus ma
   - **QA review:** QA report with Pass / Fail.
   - **Leasing view:** Ready-to-lease units.
   - **Admin:** users and roles, settings, inventory and labor CSV upload.
+- **Background jobs:** agent runs (Assessor with video can take minutes) run as **background jobs**
+  in a database-backed queue processed by a separate worker process; the UI shows job status and
+  retries failed jobs. The daily run takes a **database lock** so only one copy ever sends the
+  summary, and can also be triggered by an authenticated endpoint (for an external scheduler such
+  as Cloud Scheduler). Works the same on one server or many.
 - **Auth:** built-in accounts (hashed passwords, session cookies), role-based access. First admin
   created by a CLI command. SSO is a later option, not in v1.
 - **Notifications:** email via SMTP settings. A notification interface so Slack/Teams can be added
@@ -239,7 +279,9 @@ cabinetry, every substitution group having at least 3 approved items — plus ma
   `docs/references/uv-llms.txt`).
 - **Deploy:** a **Nixpacks**-compatible build (`nixpacks.toml`, including ffmpeg as a system
   package; matches `docs/references/nixpacks-llms.txt`) so it deploys to Nixpacks-based hosts; a
-  Dockerfile + Docker Compose for local / single server; a written guide for Google Cloud Run.
+  Dockerfile + Docker Compose for local / single server; a written guide for Google Cloud Run
+  (which requires PostgreSQL, Cloud Storage for media, and Cloud Scheduler for the daily trigger,
+  since Cloud Run's disk is temporary). Cloud Run is documented, not a tested CI target in v1.
 - **Media storage:** local disk by default, behind an interface so Google Cloud Storage / S3 can be
   configured.
 
@@ -280,8 +322,8 @@ cabinetry, every substitution group having at least 3 approved items — plus ma
 
 **Goals (v1)**
 - Field staff can upload many photos and videos for a unit from a phone and get an issue list.
-- PM gets three costed, tiered plans built only from approved inventory, each line with 2 approved
-  fallbacks.
+- PM gets the unit's scope split into three costed impact tiers, built only from approved
+  inventory, each line with 2 approved fallbacks.
 - Approvals with a configurable threshold; POs drafted per supplier, signed off by the PM.
 - Portfolio-wide daily exec summary and immediate escalations (>7 days slip, >10% overspend).
 - Independent QA report with four deviation checks and a human sign-off.
@@ -341,6 +383,18 @@ API only (nobody can use it on its own), **simple web app** (chosen).
 - Escalations also on >10% projected overspend and long-blocked tasks, with dedup.
 - One portfolio summary email rather than one per unit; default 07:00.
 - QA deviation formulas in §5.4; reviewer cannot be that unit's PM.
+- Tiers are impact buckets (each line in exactly one tier), read from the owner's tier examples.
+- `preferred_grade` default `better`; fallback ordering by grade closeness → lead time → cost.
+- Quantities: Assessor estimates, human confirms, code converts via coverage + waste columns;
+  labor priced per unit of work.
+- "Procurement needed" lines need a PM cost estimate to be approved; no PO until resolved.
+- Change requests: asset-manager re-approval if over threshold or >10% cumulative increase;
+  approved changes re-baseline (original kept).
+- Schedule: starts at approval, working days, trade steps sequential, materials gate tasks.
+- Actuals per line (invoices split across lines); installed SKU tracked; swaps limited to the
+  substitution group.
+- QA "not verifiable" lines excluded from % and force a "Needs evidence" result.
+- Background job queue + worker; DB-locked daily run; Cloud Run documented, not CI-tested.
 - Stack (FastAPI, Jinja2 + HTMX, SQLAlchemy/SQLite, APScheduler, ffmpeg); built-in auth; SMTP email.
 - Apache-2.0 licence; uv; Nixpacks + Docker Compose + Cloud Run guide.
 - EXIF/GPS stripping; upload size limits; video frame caps.
