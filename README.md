@@ -2,7 +2,9 @@
 
 Open-source AI agents that run the apartment renovation loop — **inspect → scope → coordinate → verify** — for real estate teams that renovate units before leasing them.
 
-> **Status: design stage.** The system design is drafted; no application code yet. Install steps will be added once the first release is built.
+> **Status: Phase 1 — domain core.** The design is accepted. This phase ships the tested rules and
+> maths every agent relies on (unit lifecycle, inventory loading, item picks, costing, approvals,
+> schedule, escalations, QA metrics). The agents (phase 2) and web app (phase 3) come next.
 
 ## What it does
 
@@ -16,6 +18,21 @@ Four agents, built on [Google Agent Development Kit (ADK)](https://google.github
 | **Reno QA** | Independently judges finished work against the plan and the "before" media |
 
 Agents do the judgment; plain, tested code does the arithmetic (costs, totals, schedules). People stay in charge of every approval and stage change. It's built for a portfolio of 100+ units in progress at once, not one unit at a time.
+
+## Quick start
+
+Requires [uv](https://docs.astral.sh/uv/) and Python 3.11+.
+
+```bash
+git clone https://github.com/grassurntech/multi_agent_ai_renovation.git
+cd multi_agent_ai_renovation
+uv sync
+uv run pytest
+```
+
+Fictional sample inventory and labor rates live in [`data/sample/`](data/sample/); tier rules are
+in [`config/tier_rules.toml`](config/tier_rules.toml). Settings are read from `RENO_*` environment
+variables — see [`.env.example`](.env.example).
 
 ## Planned stack
 

@@ -1,0 +1,39 @@
+# Tier rules for the Reno Planner (design §5.2). Edit to match your company's priorities.
+#
+# Tiers are impact buckets, not alternative plans: every scope line lands in exactly one tier,
+# and the PM chooses which tiers (and lines) to approve.
+
+[tiers.high]
+description = "Whole-system failures, security and safety, and cosmetic upgrades that lift lease appeal."
+examples = [
+  "electrical panel",
+  "plumbing main",
+  "HVAC",
+  "entry locks",
+  "smoke detectors",
+  "full repaint",
+  "flooring",
+  "kitchen refresh",
+]
+
+[tiers.medium]
+description = "Single appliance or fixture replacement, and cosmetic fixes limited to one room."
+examples = [
+  "dishwasher",
+  "vanity",
+  "one-room cosmetic fix",
+]
+
+[tiers.low]
+description = "Isolated single-component fixes."
+examples = [
+  "one switch",
+  "an outlet",
+  "a cabinet hinge",
+  "a drawer pull",
+]
+
+# Issues with these severities are never tiered below the given tier.
+[severity_floor]
+system_level = "high"
+safety = "high"

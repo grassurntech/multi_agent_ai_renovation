@@ -1,7 +1,7 @@
 # AI Reno Agents — Design
 
 **Date:** 2026-11-27
-**Status:** Draft for approval
+**Status:** Accepted (2026-11-27)
 **Framework:** Google Agent Development Kit (ADK), Python
 
 ---

@@ -1,0 +1,61 @@
+sku,category,subcategory,item_name,brand,model,spec,unit,unit_cost,currency,supplier,lead_time_days,grade,substitution_group,coverage_per_unit,coverage_unit,waste_pct,approved,approved_until
+PNT-001,Paint,Interior wall,Eggshell wall paint,Harbor Coat,HC-100,Eggshell white,gallon,28.00,USD,Acme Supply,2,good,PAINT-INT-WALL,350,sq_ft,10,Y,2027-12-31
+PNT-002,Paint,Interior wall,Eggshell wall paint,Northfield,NF-200,Eggshell white low-VOC,gallon,38.00,USD,Acme Supply,2,better,PAINT-INT-WALL,350,sq_ft,10,Y,2027-12-31
+PNT-003,Paint,Interior wall,Premium eggshell wall paint,Northfield,NF-300,Eggshell white scrubbable,gallon,52.00,USD,BuildRight Co,4,best,PAINT-INT-WALL,400,sq_ft,10,Y,2027-12-31
+PNT-004,Paint,Interior wall,Eggshell wall paint,Harbor Coat,HC-150,Eggshell white,gallon,41.00,USD,BuildRight Co,3,better,PAINT-INT-WALL,350,sq_ft,10,Y,2026-10-31
+PNT-010,Paint,Trim,Semi-gloss trim paint,Harbor Coat,HC-110,Semi-gloss white,gallon,31.00,USD,Acme Supply,2,good,PAINT-TRIM,350,sq_ft,10,Y,2027-12-31
+PNT-011,Paint,Trim,Semi-gloss trim paint,Northfield,NF-210,Semi-gloss white enamel,gallon,44.00,USD,Acme Supply,2,better,PAINT-TRIM,350,sq_ft,10,Y,2027-12-31
+PNT-012,Paint,Trim,Premium trim enamel,Northfield,NF-310,Semi-gloss white urethane enamel,gallon,59.00,USD,BuildRight Co,5,best,PAINT-TRIM,400,sq_ft,10,Y,2027-12-31
+FLR-001,Flooring,Vinyl plank,Vinyl plank flooring,Brindlewood,BW-6,6 mil wear layer oak look,box,42.00,USD,BuildRight Co,5,good,FLR-LVP,20,sq_ft,8,Y,2027-12-31
+FLR-002,Flooring,Vinyl plank,Vinyl plank flooring,Brindlewood,BW-12,12 mil wear layer oak look,box,58.00,USD,BuildRight Co,5,better,FLR-LVP,20,sq_ft,8,Y,2027-12-31
+FLR-003,Flooring,Vinyl plank,Rigid core vinyl plank,Corvane,CV-20,20 mil wear layer rigid core,box,79.00,USD,BuildRight Co,7,best,FLR-LVP,20,sq_ft,8,Y,2027-12-31
+FLR-004,Flooring,Vinyl plank,Vinyl plank flooring,Corvane,CV-12,12 mil wear layer walnut look,box,61.00,USD,Acme Supply,6,better,FLR-LVP,20,sq_ft,8,N,2027-12-31
+FLR-020,Flooring,Ceramic tile,Ceramic floor tile,Fenwyck,FW-1212,12x12 in matte grey,box,24.00,USD,BuildRight Co,4,good,FLR-TILE,10,sq_ft,10,Y,2027-12-31
+FLR-021,Flooring,Ceramic tile,Porcelain floor tile,Fenwyck,FW-1224,12x24 in matte grey,box,36.00,USD,BuildRight Co,4,better,FLR-TILE,10,sq_ft,10,Y,2027-12-31
+FLR-022,Flooring,Ceramic tile,Porcelain floor tile,Corvane,CV-T24,12x24 in rectified stone look,box,52.00,USD,BuildRight Co,8,best,FLR-TILE,10,sq_ft,10,Y,2027-12-31
+APL-001,Appliance,Dishwasher,Built-in dishwasher,Kelvo,KD-24A,24 in 52 dB white,each,389.00,USD,ApplianceHub,7,good,APPL-DISHWASHER,1,each,0,Y,2027-12-31
+APL-002,Appliance,Dishwasher,Built-in dishwasher,Kelvo,KD-24S,24 in 46 dB stainless,each,529.00,USD,ApplianceHub,7,better,APPL-DISHWASHER,1,each,0,Y,2027-12-31
+APL-003,Appliance,Dishwasher,Built-in dishwasher,Glimmerline,GL-24P,24 in 42 dB stainless third rack,each,749.00,USD,ApplianceHub,10,best,APPL-DISHWASHER,1,each,0,Y,2027-12-31
+APL-004,Appliance,Dishwasher,Built-in dishwasher,Glimmerline,GL-24S,24 in 47 dB stainless,each,549.00,USD,ApplianceHub,12,better,APPL-DISHWASHER,1,each,0,Y,2027-12-31
+APL-010,Appliance,Range,Electric range,Kelvo,KR-30A,30 in coil top white,each,549.00,USD,ApplianceHub,7,good,APPL-RANGE,1,each,0,Y,2027-12-31
+APL-011,Appliance,Range,Electric range,Kelvo,KR-30G,30 in glass top stainless,each,729.00,USD,ApplianceHub,7,better,APPL-RANGE,1,each,0,Y,2027-12-31
+APL-012,Appliance,Range,Electric range,Glimmerline,GL-30C,30 in convection glass top stainless,each,1049.00,USD,ApplianceHub,12,best,APPL-RANGE,1,each,0,Y,2027-12-31
+APL-020,Appliance,Refrigerator,Top-freezer refrigerator,Kelvo,KF-18W,18 cu ft white,each,699.00,USD,ApplianceHub,7,good,APPL-FRIDGE,1,each,0,Y,2027-12-31
+APL-021,Appliance,Refrigerator,Top-freezer refrigerator,Kelvo,KF-20S,20 cu ft stainless,each,899.00,USD,ApplianceHub,7,better,APPL-FRIDGE,1,each,0,Y,2027-12-31
+APL-022,Appliance,Refrigerator,French-door refrigerator,Glimmerline,GL-25F,25 cu ft stainless,each,1599.00,USD,ApplianceHub,14,best,APPL-FRIDGE,1,each,0,Y,2027-12-31
+FIX-001,Fixture,Vanity,Bathroom vanity with top,Hollowpine,HP-V24,24 in white cultured marble top,each,229.00,USD,BuildRight Co,6,good,FIX-VANITY,1,each,0,Y,2027-12-31
+FIX-002,Fixture,Vanity,Bathroom vanity with top,Hollowpine,HP-V30,30 in grey quartz top,each,389.00,USD,BuildRight Co,6,better,FIX-VANITY,1,each,0,Y,2027-12-31
+FIX-003,Fixture,Vanity,Bathroom vanity with top,Larkmere,LM-V30,30 in solid wood quartz top soft-close,each,649.00,USD,BuildRight Co,10,best,FIX-VANITY,1,each,0,Y,2027-12-31
+FIX-010,Fixture,Kitchen faucet,Kitchen faucet,Quillon,QF-100,Single handle chrome,each,79.00,USD,Acme Supply,3,good,FIX-KITCHEN-FAUCET,1,each,0,Y,2027-12-31
+FIX-011,Fixture,Kitchen faucet,Pull-down kitchen faucet,Quillon,QF-200,Pull-down brushed nickel,each,139.00,USD,Acme Supply,3,better,FIX-KITCHEN-FAUCET,1,each,0,Y,2027-12-31
+FIX-012,Fixture,Kitchen faucet,Pull-down kitchen faucet,Larkmere,LM-F300,Pull-down brushed nickel spot resist,each,219.00,USD,Acme Supply,5,best,FIX-KITCHEN-FAUCET,1,each,0,Y,2027-12-31
+HW-001,Hardware,Entry lock,Keyed entry knob and deadbolt,Securo,SC-K1,Grade 3 satin nickel,each,39.00,USD,Acme Supply,2,good,HW-ENTRY-LOCK,1,each,0,Y,2027-12-31
+HW-002,Hardware,Entry lock,Keyed entry lever and deadbolt,Securo,SC-L2,Grade 2 satin nickel rekeyable,each,69.00,USD,Acme Supply,2,better,HW-ENTRY-LOCK,1,each,0,Y,2027-12-31
+HW-003,Hardware,Entry lock,Keypad deadbolt and lever,Securo,SC-P1,Grade 1 keypad satin nickel,each,149.00,USD,Acme Supply,4,best,HW-ENTRY-LOCK,1,each,0,Y,2027-12-31
+HW-010,Hardware,Cabinet hinge,Concealed cabinet hinge,Quillon,QH-1,Full overlay 2-pack,pack,6.50,USD,Acme Supply,2,good,HW-CAB-HINGE,1,each,0,Y,2027-12-31
+HW-011,Hardware,Cabinet hinge,Soft-close cabinet hinge,Quillon,QH-2,Full overlay soft-close 2-pack,pack,11.00,USD,Acme Supply,2,better,HW-CAB-HINGE,1,each,0,Y,2027-12-31
+HW-012,Hardware,Cabinet hinge,Soft-close cabinet hinge,Larkmere,LM-H3,Full overlay soft-close nickel 2-pack,pack,17.00,USD,Acme Supply,4,best,HW-CAB-HINGE,1,each,0,Y,2027-12-31
+HW-020,Hardware,Drawer pull,Bar drawer pull,Quillon,QP-96,96 mm satin nickel,each,2.80,USD,Acme Supply,2,good,HW-DRAWER-PULL,1,each,0,Y,2027-12-31
+HW-021,Hardware,Drawer pull,Bar drawer pull,Quillon,QP-128,128 mm brushed nickel,each,4.20,USD,Acme Supply,2,better,HW-DRAWER-PULL,1,each,0,Y,2027-12-31
+HW-022,Hardware,Drawer pull,Solid bar drawer pull,Larkmere,LM-P128,128 mm solid brass matte black,each,7.90,USD,Acme Supply,4,best,HW-DRAWER-PULL,1,each,0,Y,2027-12-31
+LGT-001,Lighting,Ceiling fixture,LED flush mount light,Glimmerline,GL-FM11,11 in 3000K white,each,24.00,USD,Acme Supply,2,good,LGT-CEILING,1,each,0,Y,2027-12-31
+LGT-002,Lighting,Ceiling fixture,LED flush mount light,Glimmerline,GL-FM13,13 in selectable CCT nickel,each,39.00,USD,Acme Supply,2,better,LGT-CEILING,1,each,0,Y,2027-12-31
+LGT-003,Lighting,Ceiling fixture,LED semi-flush light,Larkmere,LM-SF15,15 in selectable CCT dimmable,each,74.00,USD,Acme Supply,5,best,LGT-CEILING,1,each,0,Y,2027-12-31
+ELE-001,Electrical,Panel,Main breaker load center,Fenwyck,FE-100,100 A 20 space,each,189.00,USD,BuildRight Co,5,good,ELEC-PANEL,1,each,0,Y,2027-12-31
+ELE-002,Electrical,Panel,Main breaker load center,Fenwyck,FE-200,200 A 30 space,each,289.00,USD,BuildRight Co,5,better,ELEC-PANEL,1,each,0,Y,2027-12-31
+ELE-003,Electrical,Panel,Main breaker load center,Corvane,CV-E200,200 A 40 space surge protected,each,449.00,USD,BuildRight Co,9,best,ELEC-PANEL,1,each,0,Y,2027-12-31
+ELE-010,Electrical,Switch,Single-pole wall switch,Fenwyck,FE-S1,15 A toggle white,each,1.20,USD,Acme Supply,1,good,ELEC-SWITCH,1,each,0,Y,2027-12-31
+ELE-011,Electrical,Switch,Single-pole decorator switch,Fenwyck,FE-S2,15 A rocker white,each,3.50,USD,Acme Supply,1,better,ELEC-SWITCH,1,each,0,Y,2027-12-31
+ELE-012,Electrical,Switch,Smart dimmer switch,Corvane,CV-D1,Wi-Fi dimmer white,each,24.00,USD,Acme Supply,3,best,ELEC-SWITCH,1,each,0,Y,2027-12-31
+ELE-020,Electrical,Outlet,Duplex receptacle,Fenwyck,FE-R1,15 A tamper resistant white,each,1.90,USD,Acme Supply,1,good,ELEC-OUTLET,1,each,0,Y,2027-12-31
+ELE-021,Electrical,Outlet,GFCI receptacle,Fenwyck,FE-G1,15 A tamper resistant GFCI white,each,16.00,USD,Acme Supply,1,better,ELEC-OUTLET,1,each,0,Y,2027-12-31
+ELE-022,Electrical,Outlet,USB GFCI receptacle,Corvane,CV-G2,20 A GFCI with USB-C white,each,32.00,USD,Acme Supply,3,best,ELEC-OUTLET,1,each,0,Y,2027-12-31
+ELE-030,Electrical,Smoke detector,Smoke alarm,Securo,SC-SA1,Battery 10-year sealed,each,19.00,USD,Acme Supply,1,good,ELEC-SMOKE,1,each,0,Y,2027-12-31
+ELE-031,Electrical,Smoke detector,Smoke and CO alarm,Securo,SC-SC2,Hardwired with battery backup,each,42.00,USD,Acme Supply,2,better,ELEC-SMOKE,1,each,0,Y,2027-12-31
+ELE-032,Electrical,Smoke detector,Smart smoke and CO alarm,Securo,SC-SC3,Hardwired interconnect voice alerts,each,89.00,USD,Acme Supply,4,best,ELEC-SMOKE,1,each,0,Y,2027-12-31
+PLB-001,Plumbing,Main shutoff,Main water shutoff valve,Quillon,QV-34,3/4 in brass gate valve,each,18.00,USD,Acme Supply,2,good,PLB-MAIN-SHUTOFF,1,each,0,Y,2027-12-31
+PLB-002,Plumbing,Main shutoff,Main water shutoff valve,Quillon,QV-34B,3/4 in full port brass ball valve,each,29.00,USD,Acme Supply,2,better,PLB-MAIN-SHUTOFF,1,each,0,Y,2027-12-31
+PLB-003,Plumbing,Main shutoff,Main water shutoff valve,Larkmere,LM-V34,3/4 in lead-free ball valve with drain,each,46.00,USD,Acme Supply,4,best,PLB-MAIN-SHUTOFF,1,each,0,Y,2027-12-31
+CAB-001,Cabinetry,Base cabinet,Kitchen base cabinet,Hollowpine,HP-B30,30 in white thermofoil,each,169.00,USD,BuildRight Co,8,good,CAB-BASE-30,1,each,0,Y,2027-12-31
+CAB-002,Cabinetry,Base cabinet,Kitchen base cabinet,Hollowpine,HP-B30S,30 in white shaker plywood box,each,279.00,USD,BuildRight Co,10,better,CAB-BASE-30,1,each,0,Y,2027-12-31
+CAB-003,Cabinetry,Base cabinet,Kitchen base cabinet,Larkmere,LM-B30,30 in painted maple soft-close,each,449.00,USD,BuildRight Co,14,best,CAB-BASE-30,1,each,0,Y,2027-12-31
