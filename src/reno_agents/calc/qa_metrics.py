@@ -1,8 +1,11 @@
 """The four QA deviation checks and the overall QA result (design §5.4).
 
 Verdicts are judged against the PM-recorded *installed* item. An approved swap may arrive as
-``done_as_specified`` or ``done_different_item``; neither is a deviation. ``installed_mismatch``
-(what is visible is not the recorded item), ``partial`` and ``missing`` are. "Not verifiable"
+``done_as_specified``, or as ``done_different_item`` on a line listed in ``recorded_swaps``;
+neither is a deviation. ``done_different_item`` on any other line is treated as
+``installed_mismatch`` by ``qa_outcome``. ``installed_mismatch`` (what is visible is not the
+recorded item), ``partial`` and ``missing`` are deviations. The lower-level ``scope_deviation``
+takes ``QaLine`` objects as given and does not apply the recorded-swap check. "Not verifiable"
 lines and photo comparisons are left out of the percentages and force "Needs evidence" unless a
 metric is already over the threshold.
 

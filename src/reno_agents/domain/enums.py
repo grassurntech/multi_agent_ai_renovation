@@ -70,7 +70,8 @@ class LineVerdict(StrEnum):
     """QA judgement of one approved scope line, against the PM-recorded installed item."""
 
     DONE_AS_SPECIFIED = "done_as_specified"
-    # An approved swap (installed item differs from the planned primary): not a deviation.
+    # An approved swap (installed item differs from the planned primary). Not a deviation when
+    # the swap is in the records; qa_outcome treats it as INSTALLED_MISMATCH otherwise.
     DONE_DIFFERENT_ITEM = "done_different_item"
     # What is visible does not match the recorded installed item: a deviation.
     INSTALLED_MISMATCH = "installed_mismatch"
