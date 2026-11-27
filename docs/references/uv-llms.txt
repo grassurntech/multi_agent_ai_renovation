@@ -1,0 +1,3 @@
+Placeholder for the llms.txt reference: uv-llms
+Paste or fetch the vendor's llms.txt content here when this tool is adopted.
+Note the source URL and fetch date on the first line once filled.
