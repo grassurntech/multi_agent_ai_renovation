@@ -44,7 +44,8 @@ class TestQaMetricsBypass:
         out = qa_metrics.qa_outcome(
             approved_costs={ln.line_id: ln.approved_cost for ln in lines},
             verdicts={ln.line_id: ln.verdict for ln in lines},
-            photo_results=[True],
+            recorded_issues=["issue-1"],
+            photo_results={"issue-1": True},
             budget=Decimal(0),
             timeline=Decimal(0),
         )
@@ -55,7 +56,8 @@ class TestQaMetricsBypass:
         out = qa_metrics.qa_outcome(
             approved_costs={"a": Decimal("10.001"), "b": Decimal("89.999")},
             verdicts={"a": LineVerdict.MISSING, "b": LineVerdict.DONE_AS_SPECIFIED},
-            photo_results=[True],
+            recorded_issues=["issue-1"],
+            photo_results={"issue-1": True},
             budget=Decimal(0),
             timeline=Decimal(0),
             threshold=Decimal("10.005"),

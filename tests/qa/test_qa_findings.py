@@ -50,7 +50,8 @@ def run_qa(
     return qa_outcome(
         approved_costs={ln.line_id: ln.approved_cost for ln in lines},
         verdicts={ln.line_id: ln.verdict for ln in lines},
-        photo_results=photo_results,
+        recorded_issues=[f"issue-{n}" for n in range(len(photo_results))],
+        photo_results={f"issue-{n}": r for n, r in enumerate(photo_results)},
         budget=budget,
         timeline=timeline,
         threshold=threshold,

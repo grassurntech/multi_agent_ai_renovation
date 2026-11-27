@@ -21,10 +21,12 @@ Z = Decimal(0)
 def _outcome(
     lines: list[QaLine], photo_results: list[bool | None] | None = None
 ) -> qa_metrics.QaOutcome:
+    results = [True] if photo_results is None else photo_results
     return qa_metrics.qa_outcome(
         approved_costs={ln.line_id: ln.approved_cost for ln in lines},
         verdicts={ln.line_id: ln.verdict for ln in lines},
-        photo_results=[True] if photo_results is None else photo_results,
+        recorded_issues=[f"issue-{n}" for n in range(len(results))],
+        photo_results={f"issue-{n}": r for n, r in enumerate(results)},
         budget=Z,
         timeline=Z,
     )
@@ -52,7 +54,8 @@ class TestScopeDilution:
             qa_metrics.qa_outcome(
                 approved_costs={"kitchen": Decimal(100)},
                 verdicts=verdicts,
-                photo_results=[True],
+                recorded_issues=["issue-1"],
+                photo_results={"issue-1": True},
                 budget=Z,
                 timeline=Z,
             )
@@ -63,7 +66,8 @@ class TestScopeDilution:
             qa_metrics.qa_outcome(
                 approved_costs={"kitchen": Decimal(100)},
                 verdicts={},
-                photo_results=[True],
+                recorded_issues=["issue-1"],
+                photo_results={"issue-1": True},
                 budget=Z,
                 timeline=Z,
             )
@@ -95,7 +99,8 @@ class TestPhotoNotVerifiable:
             qa_metrics.qa_outcome(  # type: ignore[call-arg]
                 approved_costs={"a": Decimal(100)},
                 verdicts={"a": LineVerdict.DONE_AS_SPECIFIED},
-                photo_results=[True],
+                recorded_issues=["issue-1"],
+                photo_results={"issue-1": True},
                 photo=Decimal("-50"),
                 budget=Z,
                 timeline=Z,

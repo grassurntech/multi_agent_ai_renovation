@@ -7,13 +7,14 @@ lines and photo comparisons are left out of the percentages and force "Needs evi
 metric is already over the threshold.
 
 The QA agent supplies only judgements. ``qa_outcome`` takes line costs from the approved-scope
-records and requires exactly one verdict per approved line, so a model cannot add, drop, repeat
-or re-price lines. Percentages are compared unrounded and shown rounded *up* to the next
-hundredth, so a value just over the threshold is never shown as exactly on it.
+records and requires exactly one verdict per approved line, and exactly one photo result per
+recorded issue, so a model cannot add, drop, repeat or re-price lines or issues.
+Percentages are compared unrounded and shown rounded *up* to the next hundredth, so a value just
+over the threshold is never shown as exactly on it.
 """
 
 import unicodedata
-from collections.abc import Mapping, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import ROUND_CEILING, Decimal
@@ -114,9 +115,41 @@ def judge_lines(
 
 
 def _check_unique(lines: Sequence[QaLine]) -> None:
-    keys = [_id_key(ln.line_id) for ln in lines]
+    _check_unique_ids([ln.line_id for ln in lines], "approved line")
+
+
+def _check_unique_ids(ids: Sequence[str], what: str) -> None:
+    keys = [_id_key(i) for i in ids]
     if len(set(keys)) != len(keys):
-        raise ValueError("each approved line may be judged only once (duplicate line_id)")
+        raise ValueError(f"each {what} may be judged only once (duplicate id)")
+
+
+def judge_photos(
+    recorded_issues: Collection[str], photo_results: Mapping[str, bool | None]
+) -> list[bool | None]:
+    """One photo result per recorded issue, in recorded order.
+
+    Raises ``TypeError`` if ``photo_results`` is not a mapping, and ``ValueError`` if there are
+    no recorded issues or the result ids are not exactly the recorded issue ids.
+    """
+    if not isinstance(photo_results, Mapping):
+        raise TypeError("photo_results must map each recorded issue id to True, False or None")
+    issues = list(recorded_issues)
+    if not issues:
+        raise ValueError("there are no recorded issues to compare before and after")
+    if any(not isinstance(i, str) or not _id_key(i) for i in issues):
+        raise ValueError("issue ids must be non-empty text")
+    _check_unique_ids(issues, "recorded issue")
+    missing = sorted(set(issues) - set(photo_results))
+    unknown = sorted(set(photo_results) - set(issues), key=repr)
+    if missing or unknown:
+        problems = []
+        if missing:
+            problems.append(f"no photo result for recorded issues: {', '.join(missing)}")
+        if unknown:
+            problems.append(f"photo results for issues that were not recorded: {unknown!r}")
+        raise ValueError("; ".join(problems))
+    return [photo_results[i] for i in issues]
 
 
 def _scope_raw(lines: Sequence[QaLine]) -> Decimal:
@@ -155,7 +188,8 @@ def photo_deviation(resolved_as_planned: Sequence[bool | None]) -> Decimal:
 
 def budget_deviation(actual: Decimal, approved: Decimal) -> Decimal:
     """(actual - approved) / approved, as a percent. Negative means under budget."""
-    _finite("actual", actual)
+    if _finite("actual", actual) < 0:
+        raise ValueError("actual spend cannot be negative")
     if _finite("approved", approved) <= 0:
         raise ValueError("approved budget must be greater than 0")
     try:
@@ -181,7 +215,8 @@ def qa_outcome(
     *,
     approved_costs: Mapping[str, Decimal],
     verdicts: Mapping[str, LineVerdict | str],
-    photo_results: Sequence[bool | None],
+    recorded_issues: Collection[str],
+    photo_results: Mapping[str, bool | None],
     budget: Decimal,
     timeline: Decimal,
     threshold: Decimal = Decimal("10"),
@@ -189,15 +224,15 @@ def qa_outcome(
     """Flagged if any metric is over the threshold; else Needs evidence if any line or photo
     comparison could not be verified; else Pass. The QA reviewer still makes the final call.
 
-    ``approved_costs`` comes from the approved-scope records (line id -> approved cost),
-    ``verdicts`` and ``photo_results`` from the QA agent, ``budget`` and ``timeline`` from
-    ``budget_deviation`` / ``timeline_deviation`` over the recorded actuals.
+    From the records: ``approved_costs`` (line id -> approved cost) and ``recorded_issues`` (the
+    issue ids behind the approved scope). From the QA agent: ``verdicts`` (line id -> verdict)
+    and ``photo_results`` (issue id -> resolved as planned, or None if not verifiable).
+    ``budget`` and ``timeline`` are ``budget_deviation`` / ``timeline_deviation`` over the actuals.
     """
     lines = judge_lines(approved_costs, verdicts)
-    if not photo_results:
-        raise ValueError("there are no before/after photo comparisons to judge")
+    photos = judge_photos(recorded_issues, photo_results)
     scope_raw = _scope_raw(lines)
-    photo_raw = _photo_raw(photo_results)
+    photo_raw = _photo_raw(photos)
     for name, value in (("budget", budget), ("timeline", timeline), ("threshold", threshold)):
         _finite(name, value)
     metrics = (
@@ -208,7 +243,7 @@ def qa_outcome(
     )
     flags = tuple(name for name, value in metrics if value > threshold)
     not_verifiable = sum(1 for ln in lines if ln.verdict is LineVerdict.NOT_VERIFIABLE)
-    photos_not_verifiable = sum(1 for r in photo_results if r is None)
+    photos_not_verifiable = sum(1 for r in photos if r is None)
     if flags:
         result = QaResult.FLAGGED
     elif not_verifiable or photos_not_verifiable:

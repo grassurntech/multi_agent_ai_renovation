@@ -184,7 +184,8 @@ def test_qa_pipeline_needs_evidence_then_flagged():
     o = qa_outcome(
         approved_costs=approved,
         verdicts=verdicts,
-        photo_results=[True, True, None],
+        recorded_issues=["i1", "i2", "i3"],
+        photo_results={"i1": True, "i2": True, "i3": None},
         budget=budget_deviation(Decimal("10500"), Decimal("10000")),
         timeline=timeline_deviation(
             date(2026, 11, 30), date(2026, 12, 11), date(2026, 12, 11), cal
@@ -194,7 +195,8 @@ def test_qa_pipeline_needs_evidence_then_flagged():
     o2 = qa_outcome(
         approved_costs=approved,
         verdicts=verdicts,
-        photo_results=[False, True, True, True, True, True, True, True, True],  # 11.11%
+        recorded_issues=[f"j{n}" for n in range(9)],
+        photo_results={f"j{n}": n != 0 for n in range(9)},  # 1 of 9 unresolved: 11.11%
         budget=Decimal("0"),
         timeline=timeline_deviation(
             date(2026, 11, 30), date(2026, 12, 11), date(2026, 12, 14), cal

@@ -39,7 +39,8 @@ def run_qa(
     return qa_outcome(
         approved_costs={ln.line_id: ln.approved_cost for ln in lines},
         verdicts={ln.line_id: ln.verdict for ln in lines},
-        photo_results=photo_results,
+        recorded_issues=[f"issue-{n}" for n in range(len(photo_results))],
+        photo_results={f"issue-{n}": r for n, r in enumerate(photo_results)},
         budget=budget,
         timeline=timeline,
         threshold=threshold,
@@ -151,7 +152,8 @@ def test_verdicts_must_match_approved_lines_exactly() -> None:
             qa_outcome(
                 approved_costs=approved,
                 verdicts=verdicts,
-                photo_results=[True],
+                recorded_issues=["issue-1"],
+                photo_results={"issue-1": True},
                 budget=Z,
                 timeline=Z,
             )
@@ -161,7 +163,8 @@ def test_costs_come_from_approved_records_not_the_model() -> None:
     o = qa_outcome(
         approved_costs={"kitchen": Decimal("100"), "bath": Decimal("100")},
         verdicts={"kitchen": V.MISSING, "bath": V.DONE_AS_SPECIFIED},
-        photo_results=[True],
+        recorded_issues=["issue-1"],
+        photo_results={"issue-1": True},
         budget=Z,
         timeline=Z,
     )
@@ -178,3 +181,16 @@ def test_no_approved_lines_or_no_photo_comparisons_refused() -> None:
         run_qa([])
     with pytest.raises(ValueError):
         run_qa([L("100", V.DONE_AS_SPECIFIED)], photo_results=[])
+
+
+def test_photo_results_must_match_recorded_issues_exactly() -> None:
+    base = {"approved_costs": {"a": Decimal("1")}, "verdicts": {"a": V.DONE_AS_SPECIFIED}}
+    for recorded, results in (
+        (["i1"], {"i1": False, "extra": True}),  # padded with invented issues
+        (["i1", "i2"], {"i1": True}),  # a recorded issue dropped
+        (["i1", "I1 "], {"i1": True, "I1 ": True}),  # near-duplicate issue ids
+    ):
+        with pytest.raises(ValueError):
+            qa_outcome(
+                **base, recorded_issues=recorded, photo_results=results, budget=Z, timeline=Z
+            )

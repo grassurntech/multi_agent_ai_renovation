@@ -314,7 +314,8 @@ class TestHeld:
             qa_metrics.qa_outcome(
                 approved_costs={"a": Decimal(1)},
                 verdicts={"a": LineVerdict.DONE_AS_SPECIFIED},
-                photo_results=[True],
+                recorded_issues=["issue-1"],
+                photo_results={"issue-1": True},
                 budget=Decimal("NaN"),
                 timeline=Decimal(0),
             )
