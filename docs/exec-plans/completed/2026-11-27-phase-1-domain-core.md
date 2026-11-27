@@ -1,6 +1,6 @@
 # Phase 1 — Domain Core Implementation Plan
 
-> **Status (2026-11-27):** tasks 1–12 implemented on `claude/phase-1-domain-core-69b815`, PR #2. QA fixes changed some interfaces below — notably `LineVerdict.INSTALLED_MISMATCH` + `recorded_swaps`, the record-based `qa_outcome(...)`, blocked-alert keys `<task>@<since>` and `rooms_missing_after_media=None` (fail closed). The PR description lists them; the code is authoritative.
+> **Outcome (2026-11-27):** shipped in PR #2 (merged). Domain core built with 567 tests; QA agents found and fixed 2 High-in-effect issues (CSV formula injection, severity floor) and several Mediums; remaining Lows are TD-001–TD-005. QA fixes changed some interfaces below — notably `LineVerdict.INSTALLED_MISMATCH` + `recorded_swaps`, the record-based `qa_outcome(...)`, blocked-alert keys `<task>@<since>` and `rooms_missing_after_media=None` (fail closed). The PR #2 description lists them; the code is authoritative.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
