@@ -86,15 +86,15 @@ class InventoryItem(_Row):
     model: str
     spec: str
     unit: str = Field(min_length=1)
-    unit_cost: Decimal = Field(ge=0, le=MAX_UNIT_COST, allow_inf_nan=False)
+    unit_cost: Decimal = Field(ge=0, le=MAX_UNIT_COST, decimal_places=6, allow_inf_nan=False)
     currency: str = Field(min_length=1)
     supplier: str = Field(min_length=1)
     lead_time_days: int = Field(ge=0, le=MAX_LEAD_TIME_DAYS)
     grade: Grade
     substitution_group: str = Field(min_length=1)
-    coverage_per_unit: Decimal = Field(gt=0, le=MAX_COVERAGE, allow_inf_nan=False)
+    coverage_per_unit: Decimal = Field(gt=0, le=MAX_COVERAGE, decimal_places=6, allow_inf_nan=False)
     coverage_unit: str = Field(min_length=1)
-    waste_pct: Decimal = Field(ge=0, le=100, allow_inf_nan=False)
+    waste_pct: Decimal = Field(ge=0, le=100, decimal_places=6, allow_inf_nan=False)
     approved: bool
     approved_until: date
 
@@ -130,9 +130,11 @@ class LaborRate(_Row):
     category: str = Field(min_length=1)
     task_name: str = Field(min_length=1)
     unit: str = Field(min_length=1)
-    rate: Decimal = Field(ge=0, le=MAX_RATE, allow_inf_nan=False)
+    rate: Decimal = Field(ge=0, le=MAX_RATE, decimal_places=6, allow_inf_nan=False)
     currency: str = Field(min_length=1)
-    typical_hours_per_unit: Decimal = Field(ge=0, le=MAX_HOURS_PER_UNIT, allow_inf_nan=False)
+    typical_hours_per_unit: Decimal = Field(
+        ge=0, le=MAX_HOURS_PER_UNIT, decimal_places=6, allow_inf_nan=False
+    )
     trade: str
 
     @field_validator("currency", mode="after")

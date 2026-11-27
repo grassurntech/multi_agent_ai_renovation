@@ -15,6 +15,8 @@ _HUNDRED = Decimal("100")
 _ZERO = Decimal("0")
 # A measured quantity above this (sq ft, linear ft, each) is a data error, not a unit.
 MAX_MEASURED_QTY = Decimal("10000000")
+# A single line estimate above this is a data error (the approval threshold default is 15,000).
+MAX_ESTIMATE = Decimal("100000000")
 
 
 def _check_measured(measured: Decimal) -> None:
@@ -72,11 +74,16 @@ def line_cost(
             raise MissingEstimate("a procurement-needed line needs a PM cost estimate")
         if not isinstance(estimate, Decimal) or not estimate.is_finite() or estimate < 0:
             raise ValueError("estimate must be a finite, non-negative Decimal")
+        if estimate > MAX_ESTIMATE:
+            raise ValueError(f"estimate cannot exceed {MAX_ESTIMATE}")
         materials = to_money(estimate)
         return LineCost(None, materials, labor_cost, to_money(materials + labor_cost))
-    qty = purchase_quantity(measured_qty, item.coverage_per_unit, item.waste_pct)
-    materials = to_money(item.unit_cost * qty)
-    return LineCost(qty, materials, labor_cost, to_money(materials + labor_cost))
+    try:
+        qty = purchase_quantity(measured_qty, item.coverage_per_unit, item.waste_pct)
+        materials = to_money(item.unit_cost * qty)
+        return LineCost(qty, materials, labor_cost, to_money(materials + labor_cost))
+    except ArithmeticError as exc:  # backstop: values validated elsewhere keep this unreachable
+        raise ValueError(f"line cost cannot be computed: {exc!r}") from None
 
 
 def tier_totals(lines: Iterable[tuple[Tier, LineCost]]) -> dict[Tier, Decimal]:

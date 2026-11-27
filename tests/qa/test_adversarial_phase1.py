@@ -312,11 +312,10 @@ class TestHeld:
     def test_qa_nan_metric_does_not_pass(self) -> None:
         with pytest.raises(ValueError):
             qa_metrics.qa_outcome(
-                scope=Decimal("NaN"),
-                photo=Decimal(0),
+                lines=[],
+                photo=Decimal("NaN"),
                 budget=Decimal(0),
                 timeline=Decimal(0),
-                not_verifiable=0,
             )
         assert QaResult.PASS_  # sanity
 

@@ -1,3 +1,4 @@
+import itertools
 from datetime import date
 from decimal import Decimal
 
@@ -18,8 +19,11 @@ V = LineVerdict
 Z = Decimal("0")
 
 
+_ids = itertools.count(1)
+
+
 def L(cost: str, v: LineVerdict) -> QaLine:
-    return QaLine("x", Decimal(cost), v)
+    return QaLine(f"line-{next(_ids)}", Decimal(cost), v)
 
 
 def test_scope_deviation_excludes_unverifiable_from_both_sides() -> None:
@@ -40,10 +44,8 @@ def test_partial_counts_as_deviation_and_result_rounds_up_to_two_decimals() -> N
 def test_all_unverifiable_gives_zero_and_needs_evidence() -> None:
     lines = [L("100", V.NOT_VERIFIABLE)]
     assert scope_deviation(lines) == Decimal("0")
-    o = qa_outcome(
-        scope=Decimal("0"), photo=photo_deviation([None]), budget=Z, timeline=Z, not_verifiable=1
-    )
-    assert o.result is QaResult.NEEDS_EVIDENCE and o.not_verifiable == 1
+    o = qa_outcome(lines=lines, photo=photo_deviation([None]), budget=Z, timeline=Z)
+    assert o.result is QaResult.NEEDS_EVIDENCE and o.not_verifiable == 1 and o.scope == Z
 
 
 def test_scope_deviation_of_no_lines_is_zero() -> None:
@@ -56,22 +58,23 @@ def test_photo_deviation_counts_unresolved_among_verifiable() -> None:
 
 
 def test_exactly_ten_percent_passes_just_over_flags() -> None:
-    o = qa_outcome(scope=Decimal("10"), photo=Z, budget=Z, timeline=Z, not_verifiable=0)
-    assert o.result is QaResult.PASS_
-    o = qa_outcome(scope=Decimal("10.01"), photo=Z, budget=Z, timeline=Z, not_verifiable=2)
-    assert o.result is QaResult.FLAGGED and o.flags == ("scope",)
+    at = [L("10", V.MISSING), L("90", V.DONE_AS_SPECIFIED)]
+    assert qa_outcome(lines=at, photo=Z, budget=Z, timeline=Z).result is QaResult.PASS_
+    over = [L("1001", V.MISSING), L("8999", V.DONE_AS_SPECIFIED), L("5", V.NOT_VERIFIABLE)]
+    o = qa_outcome(lines=over, photo=Z, budget=Z, timeline=Z)
+    assert o.result is QaResult.FLAGGED and o.flags == ("scope",) and o.scope == Decimal("10.01")
 
 
 def test_flags_listed_in_fixed_order() -> None:
     eleven = Decimal("11")
-    o = qa_outcome(scope=eleven, photo=eleven, budget=eleven, timeline=eleven, not_verifiable=0)
+    lines = [L("11", V.MISSING), L("89", V.DONE_AS_SPECIFIED)]
+    o = qa_outcome(lines=lines, photo=eleven, budget=eleven, timeline=eleven)
     assert o.flags == ("scope", "photo", "budget", "timeline")
 
 
 def test_threshold_is_a_setting() -> None:
-    o = qa_outcome(
-        scope=Decimal("6"), photo=Z, budget=Z, timeline=Z, not_verifiable=0, threshold=Decimal("5")
-    )
+    lines = [L("6", V.MISSING), L("94", V.DONE_AS_SPECIFIED)]
+    o = qa_outcome(lines=lines, photo=Z, budget=Z, timeline=Z, threshold=Decimal("5"))
     assert o.result is QaResult.FLAGGED
 
 
@@ -100,5 +103,17 @@ def test_timeline_finish_before_start_rejected() -> None:
 
 
 def test_under_budget_is_negative_not_flagged() -> None:
-    o = qa_outcome(scope=Z, photo=Z, budget=Decimal("-20"), timeline=Z, not_verifiable=0)
+    o = qa_outcome(lines=[], photo=Z, budget=Decimal("-20"), timeline=Z)
     assert o.result is QaResult.PASS_
+
+
+def test_duplicate_line_ids_refused() -> None:
+    with pytest.raises(ValueError):
+        scope_deviation(
+            [QaLine("a", Decimal("1"), V.MISSING), QaLine("a", Decimal("1"), V.MISSING)]
+        )
+
+
+def test_photo_results_must_be_bool_or_none() -> None:
+    with pytest.raises(TypeError):
+        photo_deviation(["false"])  # type: ignore[list-item]

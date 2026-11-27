@@ -16,11 +16,11 @@ from reno_agents.domain.lifecycle import GuardFailed, TransitionContext, transit
 from reno_agents.inventory.loader import load_inventory
 from reno_agents.inventory.schema import InventoryItem
 
-# Open findings from the adversarial re-run on f461005 (no Critical/High). Each test fails on the
-# current code; remove the mark from a test when its finding is fixed. strict=True makes a fix
-# that lands without removing the mark fail the suite.
-pytestmark = pytest.mark.xfail(
-    strict=True, reason="Open finding from adversarial re-run on f461005; see tech-debt tracker"
+# Low findings from the adversarial re-run on f461005 are deferred: each such test fails on the
+# current code and is marked strict xfail, so a fix that lands without removing the mark fails
+# the suite. The Medium findings are fixed and their tests run normally.
+LOW = pytest.mark.xfail(
+    strict=True, reason="Deferred Low from adversarial re-run on f461005; see tech-debt tracker"
 )
 
 
@@ -39,31 +39,23 @@ class TestQaMetricsBypass:
             qa_metrics.photo_deviation(["false", "false", "no"])  # type: ignore[list-item]
 
     def test_not_verifiable_lines_force_needs_evidence(self) -> None:
-        # Count is passed separately from the lines, so a caller passing 0 gets PASS.
+        # The count is derived from the lines, so a caller cannot pass 0 and get PASS.
         lines = [qa_metrics.QaLine("a", Decimal(1), LineVerdict.NOT_VERIFIABLE)]
         out = qa_metrics.qa_outcome(
-            scope=qa_metrics.scope_deviation(lines),
-            photo=Decimal(0),
-            budget=Decimal(0),
-            timeline=Decimal(0),
-            not_verifiable=0,
+            lines=lines, photo=Decimal(0), budget=Decimal(0), timeline=Decimal(0)
         )
-        assert out.result is not QaResult.PASS_
+        assert out.result is QaResult.NEEDS_EVIDENCE and out.not_verifiable == 1
 
     def test_ceiling_rounding_does_not_flag_value_under_threshold(self) -> None:
-        # True value 10.001% is under a 10.005% threshold, but ROUND_CEILING makes it 10.01%.
-        scope = qa_metrics.scope_deviation(
-            [
+        # True value 10.001% is under a 10.005% threshold; rounding up must not flag it.
+        out = qa_metrics.qa_outcome(
+            lines=[
                 qa_metrics.QaLine("a", Decimal("10.001"), LineVerdict.MISSING),
                 qa_metrics.QaLine("b", Decimal("89.999"), LineVerdict.DONE_AS_SPECIFIED),
-            ]
-        )
-        out = qa_metrics.qa_outcome(
-            scope=scope,
+            ],
             photo=Decimal(0),
             budget=Decimal(0),
             timeline=Decimal(0),
-            not_verifiable=0,
             threshold=Decimal("10.005"),
         )
         assert out.result is QaResult.PASS_
@@ -104,6 +96,7 @@ class TestDecimalOverflow:
         with pytest.raises(ValueError):
             costing.line_cost(Decimal(100), item, None)
 
+    @LOW
     def test_timeline_with_min_date_is_valueerror(self) -> None:
         with pytest.raises(ValueError):  # OverflowError today
             qa_metrics.timeline_deviation(
@@ -112,6 +105,7 @@ class TestDecimalOverflow:
 
 
 # --- Lifecycle guard type confusion ---------------------------------------------------------
+@LOW
 class TestLifecycle:
     @pytest.mark.parametrize("value", ["", 0, False, []])
     def test_work_completed_refuses_non_set_media_facts(self, value: object) -> None:
@@ -121,6 +115,7 @@ class TestLifecycle:
 
 
 # --- CSV text guard bypasses and regressions -----------------------------------------------
+@LOW
 class TestCsvText:
     @pytest.mark.parametrize(
         "payload",
@@ -150,6 +145,7 @@ class TestCsvText:
 
 
 # --- Settings residue ----------------------------------------------------------------------
+@LOW
 class TestSettings:
     @pytest.mark.parametrize(
         ("env", "value"),

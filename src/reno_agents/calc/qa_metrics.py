@@ -7,7 +7,9 @@ lines are left out of the percentages and force "Needs evidence" unless a metric
 the threshold.
 
 Percentages are rounded *up* to the next hundredth, so a value just over the threshold (10.004%)
-is never rounded down onto it and passed.
+is never rounded down onto it and passed. ``qa_outcome`` derives the scope figure and the
+not-verifiable count from the lines themselves and compares the unrounded scope figure, so a
+caller cannot pass a count or figure that disagrees with the lines.
 """
 
 from collections.abc import Sequence
@@ -24,8 +26,22 @@ _DEVIATING = frozenset({LineVerdict.PARTIAL, LineVerdict.MISSING, LineVerdict.IN
 _ONE_DAY = timedelta(days=1)
 
 
+def _raw_pct(part: Decimal, whole: Decimal) -> Decimal:
+    try:
+        return part / whole * _HUNDRED
+    except ArithmeticError as exc:
+        raise ValueError(f"percentage cannot be computed: {exc!r}") from None
+
+
+def _round_pct(value: Decimal) -> Decimal:
+    try:
+        return value.quantize(_PCT, rounding=ROUND_CEILING)
+    except ArithmeticError as exc:  # too large to hold at 2 decimal places
+        raise ValueError(f"percentage is out of range: {exc!r}") from None
+
+
 def _pct(part: Decimal, whole: Decimal) -> Decimal:
-    return (part / whole * _HUNDRED).quantize(_PCT, rounding=ROUND_CEILING)
+    return _round_pct(_raw_pct(part, whole))
 
 
 def _finite(name: str, value: Decimal) -> Decimal:
@@ -52,21 +68,36 @@ class QaLine:
 class QaOutcome:
     result: QaResult
     flags: tuple[str, ...]  # metrics over the threshold: "scope", "photo", "budget", "timeline"
-    not_verifiable: int
+    not_verifiable: int  # lines judged "not verifiable from media"
+    scope: Decimal  # scope deviation percent, as shown
 
 
-def scope_deviation(lines: Sequence[QaLine]) -> Decimal:
-    """Cost of lines not done as specified / cost of all verifiable lines, as a percent."""
+def _scope_raw(lines: Sequence[QaLine]) -> Decimal:
+    ids = [ln.line_id for ln in lines]
+    if len(set(ids)) != len(ids):
+        raise ValueError("each approved line may be judged only once (duplicate line_id)")
     verifiable = [ln for ln in lines if ln.verdict is not LineVerdict.NOT_VERIFIABLE]
     whole = sum((ln.approved_cost for ln in verifiable), Decimal(0))
     if whole == 0:
         return Decimal("0")
     part = sum((ln.approved_cost for ln in verifiable if ln.verdict in _DEVIATING), Decimal(0))
-    return _pct(part, whole)
+    return _raw_pct(part, whole)
+
+
+def scope_deviation(lines: Sequence[QaLine]) -> Decimal:
+    """Cost of deviating lines / cost of all verifiable lines, as a percent (rounded up).
+
+    Each approved line must appear once; repeating a line would dilute the figure.
+    """
+    raw = _scope_raw(lines)
+    return Decimal("0") if raw == 0 else _round_pct(raw)
 
 
 def photo_deviation(resolved_as_planned: Sequence[bool | None]) -> Decimal:
     """Percent of verifiable issues not resolved as planned; ``None`` = not verifiable."""
+    for r in resolved_as_planned:
+        if r is not None and not isinstance(r, bool):
+            raise TypeError(f"photo results must be True, False or None, got {r!r}")
     verifiable = [r for r in resolved_as_planned if r is not None]
     if not verifiable:
         return Decimal("0")
@@ -95,18 +126,21 @@ def timeline_deviation(
 
 def qa_outcome(
     *,
-    scope: Decimal,
+    lines: Sequence[QaLine],
     photo: Decimal,
     budget: Decimal,
     timeline: Decimal,
-    not_verifiable: int,
     threshold: Decimal = Decimal("10"),
 ) -> QaOutcome:
     """Flagged if any metric is over the threshold; else Needs evidence if any line could not be
-    verified; else Pass. The QA reviewer still makes the final call."""
-    if not_verifiable < 0:
-        raise ValueError("not_verifiable cannot be negative")
-    metrics = (("scope", scope), ("photo", photo), ("budget", budget), ("timeline", timeline))
+    verified; else Pass. The QA reviewer still makes the final call.
+
+    The scope figure and the not-verifiable count come from ``lines``; ``photo``, ``budget`` and
+    ``timeline`` are the percentages from the functions above.
+    """
+    scope_raw = _scope_raw(lines)
+    not_verifiable = sum(1 for ln in lines if ln.verdict is LineVerdict.NOT_VERIFIABLE)
+    metrics = (("scope", scope_raw), ("photo", photo), ("budget", budget), ("timeline", timeline))
     for name, value in (*metrics, ("threshold", threshold)):
         _finite(name, value)
     flags = tuple(name for name, value in metrics if value > threshold)
@@ -116,4 +150,5 @@ def qa_outcome(
         result = QaResult.NEEDS_EVIDENCE
     else:
         result = QaResult.PASS_
-    return QaOutcome(result, flags, not_verifiable)
+    scope = Decimal("0") if scope_raw == 0 else _round_pct(scope_raw)
+    return QaOutcome(result, flags, not_verifiable, scope)

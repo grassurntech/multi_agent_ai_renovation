@@ -40,9 +40,7 @@ Z = Decimal("0")
 # M1: strict ">" threshold is applied after rounding to 2 dp, so 10.004% is not "over 10%".
 def test_qa_budget_over_ten_percent_by_fraction_is_flagged():
     actual, approved = Decimal("11000.40"), Decimal("10000")  # +10.004%
-    o = qa_outcome(
-        scope=Z, photo=Z, budget=budget_deviation(actual, approved), timeline=Z, not_verifiable=0
-    )
+    o = qa_outcome(lines=[], photo=Z, budget=budget_deviation(actual, approved), timeline=Z)
     assert o.result is QaResult.FLAGGED  # actual: PASS (budget_deviation -> 10.00)
 
 
@@ -59,9 +57,7 @@ def test_qa_budget_and_overspend_alert_agree_on_same_numbers():
         blocked_since={},
     )
     assert [e.kind for e in alerted] == [EscalationKind.OVERSPEND]  # alert fires (unrounded)
-    qa = qa_outcome(
-        scope=Z, photo=Z, budget=budget_deviation(actual, approved), timeline=Z, not_verifiable=0
-    )
+    qa = qa_outcome(lines=[], photo=Z, budget=budget_deviation(actual, approved), timeline=Z)
     assert "budget" in qa.flags  # actual: () -- QA says within 10%
 
 
@@ -70,7 +66,7 @@ def test_qa_scope_over_ten_percent_by_fraction_is_flagged():
         QaLine("a", Decimal("10004"), LineVerdict.MISSING),
         QaLine("b", Decimal("89996"), LineVerdict.DONE_AS_SPECIFIED),
     ]  # 10.004%
-    o = qa_outcome(scope=scope_deviation(lines), photo=Z, budget=Z, timeline=Z, not_verifiable=0)
+    o = qa_outcome(lines=lines, photo=Z, budget=Z, timeline=Z)
     assert o.result is QaResult.FLAGGED  # actual: PASS
 
 

@@ -61,9 +61,13 @@ def evaluate_unit(
         )
 
     if approved_budget > 0:
-        over_pct = (projected_spend - approved_budget) / approved_budget * 100
-        if over_pct > overspend_alert_pct:
-            shown = over_pct.quantize(_TENTH, rounding=ROUND_HALF_UP)
+        try:
+            over_pct = (projected_spend - approved_budget) / approved_budget * 100
+            over = over_pct > overspend_alert_pct
+            shown = over_pct.quantize(_TENTH, rounding=ROUND_HALF_UP) if over else over_pct
+        except ArithmeticError as exc:  # absurd inputs (e.g. NaN, 1E+30 over 0.01)
+            raise ValueError(f"overspend cannot be computed: {exc!r}") from None
+        if over:
             out.append(
                 Escalation(
                     unit_id,
