@@ -30,7 +30,9 @@ class Settings(BaseSettings):
     blocked_alert_days: int = Field(default=2, ge=0)
     slip_alert_days: int = Field(default=7, ge=0)
     overspend_alert_pct: Decimal = Field(default=Decimal("10"), ge=0, allow_inf_nan=False)
-    qa_deviation_pct: Decimal = Field(default=Decimal("10"), ge=0, allow_inf_nan=False)
+    qa_deviation_pct: Decimal = Field(
+        default=Decimal("10"), ge=0, lt=100, decimal_places=2, allow_inf_nan=False
+    )
     hours_per_day: Decimal = Field(
         default=Decimal("8"), ge=Decimal("0.01"), le=24, allow_inf_nan=False
     )

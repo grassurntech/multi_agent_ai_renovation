@@ -78,7 +78,6 @@ def test_zero_cost_missing_line_is_seen_alongside_priced_lines() -> None:
 
 
 # --- Low: precision loss at default 28-digit context turns >10% into exactly 10% -----------
-@LOW
 def test_scope_just_over_threshold_with_wide_costs_is_flagged() -> None:
     out = qa_metrics.qa_outcome(
         approved_costs={

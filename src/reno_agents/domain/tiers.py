@@ -65,9 +65,21 @@ def load_tier_rules(path: Path) -> TierRules:
     return TierRules(rules, floor)
 
 
+def _severity(value: Severity | str) -> Severity:
+    # Model output may vary in case, spaces or hyphens ("System-Level"); anything that is still
+    # not a known severity is refused, so a safety issue can never skip its floor.
+    text = value.value if isinstance(value, Severity) else str(value)
+    key = text.strip().lower().replace("-", "_").replace(" ", "_")
+    return _enum(Severity, key, "severity")  # type: ignore[no-any-return]
+
+
 def apply_floor(proposed: Tier, severity: Severity, rules: TierRules) -> Tier:
-    """Raise ``proposed`` to the severity's floor if it is below it; never lower it."""
-    floor = rules.severity_floor.get(severity)
+    """Raise ``proposed`` to the severity's floor if it is below it; never lower it.
+
+    Raises ``ValueError`` for an unknown tier or severity rather than skipping the floor.
+    """
+    proposed = _enum(Tier, proposed, "tier")
+    floor = rules.severity_floor.get(_severity(severity))
     if floor is None or _IMPACT[proposed] >= _IMPACT[floor]:
         return proposed
     return floor

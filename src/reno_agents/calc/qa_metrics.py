@@ -14,10 +14,10 @@ over the threshold is never shown as exactly on it.
 """
 
 import unicodedata
-from collections.abc import Collection, Mapping, Sequence
+from collections.abc import Collection, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
-from decimal import ROUND_CEILING, Decimal
+from decimal import ROUND_CEILING, Context, Decimal, localcontext
 
 from reno_agents.calc.schedule import WorkCalendar
 from reno_agents.domain.enums import LineVerdict, QaResult
@@ -27,11 +27,23 @@ _PCT = Decimal("0.01")
 _ZERO = Decimal("0")
 _DEVIATING = frozenset({LineVerdict.PARTIAL, LineVerdict.MISSING, LineVerdict.INSTALLED_MISMATCH})
 _ONE_DAY = timedelta(days=1)
+# Fixed precision, independent of the caller's decimal context, so a result never depends on
+# global state and wide costs keep every digit that matters for a strict ">" comparison.
+_CTX = Context(prec=60)
+_PREVIEW = 10
+
+
+def _preview(ids: Iterable[object]) -> str:
+    """Bounded, quoted list of ids for error messages (ids may be model-supplied)."""
+    shown = sorted(repr(i)[:40] for i in ids)
+    more = f" and {len(shown) - _PREVIEW} more" if len(shown) > _PREVIEW else ""
+    return ", ".join(shown[:_PREVIEW]) + more
 
 
 def _raw_pct(part: Decimal, whole: Decimal) -> Decimal:
     try:
-        return part / whole * _HUNDRED
+        with localcontext(_CTX):
+            return part / whole * _HUNDRED
     except ArithmeticError as exc:
         raise ValueError(f"percentage cannot be computed: {exc!r}") from None
 
@@ -40,7 +52,9 @@ def _round_pct(value: Decimal) -> Decimal:
     if value == 0:
         return _ZERO
     try:
-        return value.quantize(_PCT, rounding=ROUND_CEILING)
+        with localcontext(_CTX):
+            shown = value.quantize(_PCT, rounding=ROUND_CEILING)
+        return abs(shown) if shown == 0 else shown  # never "-0.00"
     except ArithmeticError as exc:  # too large to hold at 2 decimal places
         raise ValueError(f"percentage is out of range: {exc!r}") from None
 
@@ -53,7 +67,8 @@ def _finite(name: str, value: Decimal) -> Decimal:
 
 def _sum(values: Sequence[Decimal]) -> Decimal:
     try:
-        return sum(values, _ZERO)
+        with localcontext(_CTX):
+            return sum(values, _ZERO)
     except ArithmeticError as exc:
         raise ValueError(f"costs are too large to add up: {exc!r}") from None
 
@@ -90,26 +105,45 @@ class QaOutcome:
     photos_not_verifiable: int  # before/after comparisons that could not be judged
 
 
-def judge_lines(
-    approved_costs: Mapping[str, Decimal], verdicts: Mapping[str, LineVerdict | str]
-) -> list[QaLine]:
-    """Pair each approved line (cost from the records) with its single QA verdict.
-
-    Raises ``ValueError`` if there are no approved lines, or the verdict ids are not exactly the
-    approved ids (a line left out, an unknown line, or a near-copy of an id).
-    """
-    if not approved_costs:
-        raise ValueError("there are no approved lines to judge")
-    missing = sorted(set(approved_costs) - set(verdicts))
-    unknown = sorted(set(verdicts) - set(approved_costs))
+def _reconcile(expected: Collection[object], got: Collection[object], what: str) -> None:
+    missing = set(expected) - set(got)
+    unknown = set(got) - set(expected)
     if missing or unknown:
         problems = []
         if missing:
-            problems.append(f"no verdict for approved lines: {', '.join(missing)}")
+            problems.append(f"no {what} for: {_preview(missing)}")
         if unknown:
-            problems.append(f"verdicts for lines not in the approved scope: {unknown!r}")
+            problems.append(f"{what} for ids that are not in the records: {_preview(unknown)}")
         raise ValueError("; ".join(problems))
-    lines = [QaLine(i, approved_costs[i], LineVerdict(verdicts[i])) for i in approved_costs]
+
+
+def judge_lines(
+    approved_costs: Mapping[str, Decimal],
+    verdicts: Mapping[str, LineVerdict | str],
+    recorded_swaps: Collection[str] = frozenset(),
+) -> list[QaLine]:
+    """Pair each approved line (cost from the records) with its single QA verdict.
+
+    ``recorded_swaps`` are the approved lines whose PM-recorded installed item differs from the
+    planned primary. A ``done_different_item`` verdict on any other line is an installed item that
+    does not match the records, so it is counted as ``installed_mismatch`` (a deviation).
+
+    Raises ``ValueError`` if there are no approved lines, ``verdicts`` is not a mapping, or the
+    verdict ids are not exactly the approved ids (a line left out, an unknown line, a near-copy).
+    """
+    if not isinstance(verdicts, Mapping):
+        raise ValueError("verdicts must map each approved line id to a verdict")
+    if not approved_costs:
+        raise ValueError("there are no approved lines to judge")
+    _reconcile(approved_costs, verdicts, "verdict")
+    if isinstance(recorded_swaps, str) or not set(recorded_swaps) <= set(approved_costs):
+        raise ValueError("recorded_swaps must be a collection of approved line ids")
+    lines = []
+    for line_id, cost in approved_costs.items():
+        verdict = LineVerdict(verdicts[line_id])
+        if verdict is LineVerdict.DONE_DIFFERENT_ITEM and line_id not in recorded_swaps:
+            verdict = LineVerdict.INSTALLED_MISMATCH
+        lines.append(QaLine(line_id, cost, verdict))
     _check_unique(lines)
     return lines
 
@@ -134,22 +168,20 @@ def judge_photos(
     """
     if not isinstance(photo_results, Mapping):
         raise TypeError("photo_results must map each recorded issue id to True, False or None")
+    if isinstance(recorded_issues, str):
+        raise TypeError("recorded_issues must be a collection of issue ids, not one string")
     issues = list(recorded_issues)
     if not issues:
         raise ValueError("there are no recorded issues to compare before and after")
     if any(not isinstance(i, str) or not _id_key(i) for i in issues):
         raise ValueError("issue ids must be non-empty text")
     _check_unique_ids(issues, "recorded issue")
-    missing = sorted(set(issues) - set(photo_results))
-    unknown = sorted(set(photo_results) - set(issues), key=repr)
-    if missing or unknown:
-        problems = []
-        if missing:
-            problems.append(f"no photo result for recorded issues: {', '.join(missing)}")
-        if unknown:
-            problems.append(f"photo results for issues that were not recorded: {unknown!r}")
-        raise ValueError("; ".join(problems))
-    return [photo_results[i] for i in issues]
+    _reconcile(issues, photo_results, "photo result")
+    results = [photo_results[i] for i in issues]
+    for r in results:
+        if r is not None and not isinstance(r, bool):
+            raise TypeError(f"photo results must be True, False or None, got {r!r}"[:120])
+    return results
 
 
 def _scope_raw(lines: Sequence[QaLine]) -> Decimal:
@@ -193,7 +225,8 @@ def budget_deviation(actual: Decimal, approved: Decimal) -> Decimal:
     if _finite("approved", approved) <= 0:
         raise ValueError("approved budget must be greater than 0")
     try:
-        over = actual - approved
+        with localcontext(_CTX):
+            over = actual - approved
     except ArithmeticError as exc:
         raise ValueError(f"budget deviation cannot be computed: {exc!r}") from None
     return _round_pct(_raw_pct(over, approved))
@@ -220,6 +253,7 @@ def qa_outcome(
     budget: Decimal,
     timeline: Decimal,
     threshold: Decimal = Decimal("10"),
+    recorded_swaps: Collection[str] = frozenset(),
 ) -> QaOutcome:
     """Flagged if any metric is over the threshold; else Needs evidence if any line or photo
     comparison could not be verified; else Pass. The QA reviewer still makes the final call.
@@ -228,12 +262,22 @@ def qa_outcome(
     issue ids behind the approved scope). From the QA agent: ``verdicts`` (line id -> verdict)
     and ``photo_results`` (issue id -> resolved as planned, or None if not verifiable).
     ``budget`` and ``timeline`` are ``budget_deviation`` / ``timeline_deviation`` over the actuals.
+    ``recorded_swaps`` (from the records) are the lines with a PM-recorded approved swap; see
+    ``judge_lines``. ``threshold`` is below 100 with at most 2 decimals, so comparing the
+    rounded-up budget and timeline figures against it is exact.
     """
-    lines = judge_lines(approved_costs, verdicts)
+    if (
+        not isinstance(threshold, Decimal)
+        or not threshold.is_finite()
+        or not 0 <= threshold < _HUNDRED
+        or threshold != threshold.quantize(_PCT)
+    ):
+        raise ValueError("threshold must be at least 0, under 100, with at most 2 decimals")
+    lines = judge_lines(approved_costs, verdicts, recorded_swaps)
     photos = judge_photos(recorded_issues, photo_results)
     scope_raw = _scope_raw(lines)
     photo_raw = _photo_raw(photos)
-    for name, value in (("budget", budget), ("timeline", timeline), ("threshold", threshold)):
+    for name, value in (("budget", budget), ("timeline", timeline)):
         _finite(name, value)
     metrics = (
         ("scope", scope_raw),

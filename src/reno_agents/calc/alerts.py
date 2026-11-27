@@ -14,7 +14,7 @@ The same escalation is re-sent only when it gets worse, so PMs do not learn to i
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import date
-from decimal import ROUND_HALF_UP, Decimal
+from decimal import ROUND_CEILING, Decimal
 
 from reno_agents.domain.enums import EscalationKind
 
@@ -46,8 +46,8 @@ def evaluate_unit(
 ) -> list[Escalation]:
     """Every escalation that applies to one unit right now (before dedup)."""
     for name, value in (("approved_budget", approved_budget), ("projected_spend", projected_spend)):
-        if not isinstance(value, Decimal) or not value.is_finite():
-            raise ValueError(f"{name} must be a finite Decimal")
+        if not isinstance(value, Decimal) or not value.is_finite() or value < 0:
+            raise ValueError(f"{name} must be a finite, non-negative Decimal")
     out: list[Escalation] = []
 
     slip = (projected_finish - planned_finish).days
@@ -67,7 +67,8 @@ def evaluate_unit(
         try:
             over_pct = (projected_spend - approved_budget) / approved_budget * 100
             over = over_pct > overspend_alert_pct
-            shown = over_pct.quantize(_TENTH, rounding=ROUND_HALF_UP) if over else over_pct
+            # Shown rounded up, so an alert that fired for "more than 10%" never reads 10.0%.
+            shown = over_pct.quantize(_TENTH, rounding=ROUND_CEILING) if over else over_pct
         except ArithmeticError as exc:  # absurd inputs (e.g. NaN, 1E+30 over 0.01)
             raise ValueError(f"overspend cannot be computed: {exc!r}") from None
         if over:

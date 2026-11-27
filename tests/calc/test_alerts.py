@@ -38,7 +38,7 @@ def test_overspend_boundary() -> None:
     at = run(projected_spend=Decimal("11000"))
     over = run(projected_spend=Decimal("11000.01"))
     assert at == [] and over[0].kind is EscalationKind.OVERSPEND
-    assert over[0].magnitude == Decimal("10.0")
+    assert over[0].magnitude == Decimal("10.1")  # shown rounded up: never "10.0% over"
 
 
 def test_overspend_magnitude_rounded_to_one_decimal() -> None:

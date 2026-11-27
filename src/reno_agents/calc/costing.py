@@ -90,7 +90,11 @@ def tier_totals(lines: Iterable[tuple[Tier, LineCost]]) -> dict[Tier, Decimal]:
     """Sum of line totals per tier; every tier is present, zero when it has no lines."""
     totals = {tier: _ZERO for tier in (Tier.HIGH, Tier.MEDIUM, Tier.LOW)}
     for tier, cost in lines:
-        totals[tier] += cost.total
+        try:
+            key = Tier(tier)
+        except ValueError:
+            raise ValueError(f"unknown tier {tier!r}") from None
+        totals[key] += cost.total
     return {tier: to_money(value) for tier, value in totals.items()}
 
 
