@@ -29,15 +29,25 @@ This file is the **table of contents** for the project. Read it first, then open
 | [docs/generated/db-schema.md](docs/generated/db-schema.md) | DB schema (generated — never hand-edit) | Querying or migrating data |
 | [docs/references/](docs/references/) | Vendor `llms.txt` references (design system, Nixpacks, uv) | Using one of those tools |
 
+| **QA agents** | | |
+| [.claude/agents/qa-functional.md](.claude/agents/qa-functional.md) | Unit, integration, regression testing agent | Run by Rule 2 |
+| [.claude/agents/qa-adversarial.md](.claude/agents/qa-adversarial.md) | Break-it agent: prompt injection, rogue tool calls, malformed input | Run by Rule 2 |
+
 When a new doc is added anywhere under `docs/`, add a row here and in the relevant `index.md`.
 
-## Rule: update docs after every successful PR
+# NON-NEGOTIABLE RULES
 
-**Trigger:** a commit is made **and** pushed **and** a PR is successfully opened or updated. Do not run this on failed pushes or local-only commits.
+These two rules are mandatory on every task. They cannot be skipped, shortened, or deferred unless the user explicitly says so for that specific task.
 
-**Steps**
+**Workflow order:** dev task complete → **Rule 2 (QA agents)** → fix findings → re-run QA → commit / push / PR → **Rule 1 (docs sync)**.
 
-1. **Identify** — From the PR diff, list candidate details (what changed and why). Map each to the doc(s) it belongs in using the table below. Only files with at least one mapped detail are "relevant"; leave every other file untouched.
+## Rule 1: Sync the relevant docs every time we ship or PR
+
+**Trigger:** as soon as something ships, or a commit is pushed and a PR is opened or updated. Not on failed pushes or local-only commits.
+
+**Analyse first, then locate, then write.** Never update every doc. Never write before steps 1–2 are done.
+
+1. **Analyse** — From the diff, list candidate details (what changed and why). Map each to the doc(s) it belongs in using the table below. Only files with at least one mapped detail are "relevant"; leave every other file untouched.
 2. **Grade** — Score each candidate detail before writing anything:
    - **A — Must record:** changes how someone builds, runs, or reasons about the system (new component, API/contract change, schema change, new principle, new risk, shipped/changed spec, new debt).
    - **B — Record briefly:** useful context, one line at most (minor convention, small behaviour change).
@@ -63,3 +73,16 @@ When a new doc is added anywhere under `docs/`, add a row here and in the releva
 | New doc added | This file's table of contents |
 
 **Don't:** bloat docs with changelogs, restate code, duplicate a detail across files (record it once, link from elsewhere), or touch docs the PR didn't affect.
+
+## Rule 2: Independent QA agents after every dev task
+
+**Trigger:** a dev task is complete (code written, builds, author's own checks pass) — before it is committed for PR.
+
+1. **Spawn both QA subagents in parallel**, each in its own worktree (`isolation: "worktree"`), against the latest commit of the working branch:
+   - `qa-functional` — unit, integration, and **regression** testing.
+   - `qa-adversarial` — tries to break the code and the agents: prompt injection (direct and indirect), unexpected/malformed tool calls, malformed input, abuse of limits.
+2. **Brief them with the code, not a conclusion.** Give the branch, the diff range, and what the task was meant to do. Do not tell them it works or what to expect — they must form their own view.
+3. **They report, they don't fix.** QA agents may add tests and repro scripts, but never change product code.
+4. **Gate:** no PR while any **Critical** or **High** finding is open, unless the user explicitly accepts the risk. Fix the findings in the main session, then re-run the affected QA agent to confirm.
+5. **Keep the tests.** New regression tests that QA writes for real bugs get merged with the fix, so the bug can't return.
+6. **Report to the user** — findings by severity, what was fixed, what is still open. Feed lasting results into Rule 1 (`docs/QUALITY_SCORE.md`, `docs/SECURITY.md`, `docs/RELIABILITY.md`, `tech-debt-tracker.md`) as relevant.
