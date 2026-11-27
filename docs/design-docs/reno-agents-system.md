@@ -193,7 +193,9 @@ QA independent.
   - projected spend exceeds approved budget by **more than 10%**, or
   - a task is "blocked" for more than a setting (default 2 days).
   Escalations go to the unit's PM by email. They also appear in the next daily summary. The same
-  escalation is not re-sent unless it gets worse (dedup).
+  escalation is not re-sent unless it gets worse (dedup): slip and overspend are re-sent when they
+  grow (cleared when an approved change request re-baselines the plan); a blocked task alerts once
+  per blocking episode, and a task blocked again later is a new escalation.
 - **Handoff:** when the PM marks the unit complete and at least one `after` media item exists for
   every room that has approved scope, the app moves the unit to Complete and triggers QA.
 
@@ -207,18 +209,23 @@ QA independent.
   Assessor for independence.
 - **Checks — any one over 10% is flagged:**
   1. **Scope deviation:** each approved line is judged *done as specified / done with a different
-     item / partial / missing / not verifiable from media*. Deviation % = cost of lines not done as
-     specified ÷ total approved cost.
+     item / installed item doesn't match the record / partial / missing / not verifiable from
+     media*. Deviation % = cost of deviating lines ÷ total approved cost.
   2. **Photo comparison:** for each room with scope, before vs. after per issue — is the issue
      resolved, and does the visible item match the planned item's category, grade and spec
      (colour, finish, type)? Expressed as % of issues not resolved as planned.
   3. **Budget:** (actual − approved) ÷ approved.
   4. **Timeline:** (actual finish − planned finish) ÷ planned duration.
-  QA compares against the **installed item** recorded by the PM: an approved swap is "done with a
-  different item" and is not a deviation; an installed item that doesn't match what's visible is.
-  Lines marked **"not verifiable from media"** are left out of the percentages and listed
-  separately. If any exist, the result cannot be Pass: it is **Needs evidence**, and the reviewer
-  either requests more `after` media or overrides with a written note.
+  QA compares against the **installed item** recorded by the PM: on a line the PM recorded as an
+  approved swap, "done with a different item" is not a deviation; on any other line it counts as
+  "installed item doesn't match the record", which is a deviation, as is any installed item that
+  doesn't match what's visible.
+  Line costs, the issue list and recorded swaps come from the **records**; the QA agent supplies
+  only a verdict per approved line and a photo judgement per recorded issue, matched to the records
+  by id, so it cannot add, drop, repeat or re-price lines or issues.
+  Lines and photo comparisons marked **"not verifiable from media"** are left out of the
+  percentages and listed separately. If any exist, the result cannot be Pass: it is **Needs
+  evidence**, and the reviewer either requests more `after` media or overrides with a written note.
 - **Output: QA report** — an in-app page plus downloadable bundle (PDF report + approved scope +
   POs + before/after media index). Contents: overall result (Pass / Flagged / Needs evidence), the four deviation
   figures, per-line verdicts with side-by-side before/after evidence, list of deviations over 10%,
