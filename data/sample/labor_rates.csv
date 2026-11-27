@@ -1,0 +1,20 @@
+task_code,category,task_name,unit,rate,currency,typical_hours_per_unit,trade
+L-DEMO-FLR,Demolition,Remove old flooring,sq_ft,0.85,USD,0.02,demo
+L-DEMO-CAB,Demolition,Remove old cabinet,each,45.00,USD,1,demo
+L-ELEC-PANEL,Electrical,Replace electrical panel,each,1450.00,USD,10,rough_in
+L-PLB-SHUTOFF,Plumbing,Replace main shutoff valve,each,240.00,USD,2.5,rough_in
+L-DRYWALL,Repairs,Patch drywall,sq_ft,4.50,USD,0.15,repairs
+L-PNT-WALL,Paint,Paint interior walls,sq_ft,1.25,USD,0.02,paint
+L-PNT-TRIM,Paint,Paint trim and doors,sq_ft,1.60,USD,0.03,paint
+L-FLR-LVP,Flooring,Install vinyl plank,sq_ft,2.75,USD,0.04,flooring
+L-FLR-TILE,Flooring,Install floor tile,sq_ft,6.50,USD,0.12,flooring
+L-APPL-INSTALL,Appliance,Install appliance,each,150.00,USD,2,fixtures_appliances
+L-FIX-VANITY,Fixture,Install vanity,each,320.00,USD,4,fixtures_appliances
+L-FIX-FAUCET,Fixture,Install kitchen faucet,each,140.00,USD,1.5,fixtures_appliances
+L-LGT-FIXTURE,Lighting,Install light fixture,each,95.00,USD,1,fixtures_appliances
+L-ELEC-DEVICE,Electrical,Replace switch or outlet,each,65.00,USD,0.5,fixtures_appliances
+L-ELEC-SMOKE,Electrical,Install smoke alarm,each,55.00,USD,0.5,fixtures_appliances
+L-CAB-INSTALL,Cabinetry,Install base cabinet,each,180.00,USD,3,fixtures_appliances
+L-HW-LOCK,Hardware,Install entry lock,each,85.00,USD,1,hardware
+L-HW-CABINET,Hardware,Replace cabinet hinge or pull,each,12.00,USD,0.2,hardware
+L-CLEAN,Cleaning,Final clean,sq_ft,0.30,USD,0.005,clean
