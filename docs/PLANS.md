@@ -8,4 +8,4 @@ How execution plans work.
 - Debt discovered along the way goes to `exec-plans/tech-debt-tracker.md`.
 
 ## Active plans
-_None yet._
+- [2026-11-27-phase-1-domain-core.md](exec-plans/active/2026-11-27-phase-1-domain-core.md) — Phase 1 of 3: rules and maths core (no AI/DB/web). Phases 2 (agents) and 3 (web app) are planned after it ships.
