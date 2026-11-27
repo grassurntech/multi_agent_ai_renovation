@@ -11,6 +11,10 @@ KEY_PATTERNS = [
     re.compile(r"AIza[0-9A-Za-z_\-]{35}"),  # Google API key
     re.compile(r"sk-(ant-)?[A-Za-z0-9_\-]{20,}"),  # OpenAI / Anthropic style
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+    re.compile(r"AKIA[0-9A-Z]{16}"),  # AWS access key id
+    re.compile(r"gh[pousr]_[A-Za-z0-9]{36}"),  # GitHub token
+    re.compile(r"xox[baprs]-[A-Za-z0-9\-]{10,}"),  # Slack token
+    re.compile(r"[sr]k_live_[0-9A-Za-z]{24,}"),  # Stripe live key
 ]
 
 

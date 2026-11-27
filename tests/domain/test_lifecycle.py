@@ -49,7 +49,8 @@ def test_work_completed_requires_after_media_per_room() -> None:
             S.IN_PROGRESS, E.WORK_COMPLETED, Ctx(rooms_missing_after_media=frozenset({"Kitchen"}))
         )
     assert "Kitchen" in " ".join(exc.value.reasons)
-    assert transition(S.IN_PROGRESS, E.WORK_COMPLETED, Ctx()) is S.COMPLETE
+    done = Ctx(rooms_missing_after_media=frozenset())
+    assert transition(S.IN_PROGRESS, E.WORK_COMPLETED, done) is S.COMPLETE
 
 
 @pytest.mark.parametrize(

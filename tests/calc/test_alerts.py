@@ -52,12 +52,14 @@ def test_zero_budget_does_not_crash() -> None:
 
 def test_blocked_more_than_two_days() -> None:
     es = run(blocked_since={"t1": date(2026, 12, 8), "t2": date(2026, 12, 7)})
-    assert [(e.kind, e.key, e.magnitude) for e in es] == [(EscalationKind.BLOCKED, "t2", 3)]
+    assert [(e.kind, e.key, e.magnitude) for e in es] == [
+        (EscalationKind.BLOCKED, "t2@2026-12-07", 3)
+    ]
 
 
 def test_blocked_tasks_reported_in_stable_order() -> None:
     es = run(blocked_since={"t9": date(2026, 12, 1), "t1": date(2026, 12, 1)})
-    assert [e.key for e in es] == ["t1", "t9"]
+    assert [e.key for e in es] == ["t1@2026-12-01", "t9@2026-12-01"]
 
 
 def test_thresholds_are_settings() -> None:

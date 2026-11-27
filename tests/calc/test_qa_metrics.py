@@ -27,14 +27,14 @@ def test_scope_deviation_excludes_unverifiable_from_both_sides() -> None:
     assert scope_deviation(lines) == Decimal("10.00")
 
 
-def test_different_item_counts_as_deviation() -> None:
-    lines = [L("500", V.DONE_DIFFERENT_ITEM), L("500", V.DONE_AS_SPECIFIED)]
+def test_installed_mismatch_counts_as_deviation() -> None:
+    lines = [L("500", V.INSTALLED_MISMATCH), L("500", V.DONE_AS_SPECIFIED)]
     assert scope_deviation(lines) == Decimal("50.00")
 
 
-def test_partial_counts_as_deviation_and_result_is_two_decimals() -> None:
+def test_partial_counts_as_deviation_and_result_rounds_up_to_two_decimals() -> None:
     lines = [L("1", V.PARTIAL), L("2", V.DONE_AS_SPECIFIED)]
-    assert scope_deviation(lines) == Decimal("33.33")
+    assert scope_deviation(lines) == Decimal("33.34")
 
 
 def test_all_unverifiable_gives_zero_and_needs_evidence() -> None:
@@ -51,7 +51,7 @@ def test_scope_deviation_of_no_lines_is_zero() -> None:
 
 
 def test_photo_deviation_counts_unresolved_among_verifiable() -> None:
-    assert photo_deviation([True, False, None, True]) == Decimal("33.33")
+    assert photo_deviation([True, False, None, True]) == Decimal("33.34")
     assert photo_deviation([]) == Decimal("0")
 
 

@@ -91,7 +91,10 @@ class Schedule:
 
 
 def _duration_days(hours: Decimal, hours_per_day: Decimal) -> int:
-    days = (hours / hours_per_day).to_integral_value(rounding=ROUND_CEILING)
+    try:
+        days = (hours / hours_per_day).to_integral_value(rounding=ROUND_CEILING)
+    except ArithmeticError as exc:  # decimal Overflow / InvalidOperation
+        raise ValueError(f"task duration cannot be computed: {exc!r}") from None
     if days > MAX_TASK_WORKING_DAYS:
         raise ValueError(f"a task cannot last more than {MAX_TASK_WORKING_DAYS} working days")
     return max(1, int(days))
@@ -106,8 +109,8 @@ def build_schedule(
     """Plan start/finish for every task, starting no earlier than ``start``."""
     if not tasks:
         raise ValueError("a schedule needs at least one task")
-    if not hours_per_day.is_finite() or hours_per_day <= 0:
-        raise ValueError("hours_per_day must be greater than 0")
+    if not hours_per_day.is_finite() or not Decimal("0.01") <= hours_per_day <= 24:
+        raise ValueError("hours_per_day must be between 0.01 and 24")
     ids = [t.task_id for t in tasks]
     if len(set(ids)) != len(ids):
         raise ValueError("task ids must be unique")
@@ -117,6 +120,15 @@ def build_schedule(
         if not t.hours.is_finite() or t.hours < 0:
             raise ValueError(f"task {t.task_id!r} has invalid hours {t.hours}")
 
+    try:
+        return _plan(tasks, start, calendar, hours_per_day)
+    except OverflowError:
+        raise ValueError("schedule runs past the last representable date") from None
+
+
+def _plan(
+    tasks: Sequence[ScheduleTask], start: date, calendar: WorkCalendar, hours_per_day: Decimal
+) -> Schedule:
     planned: dict[str, tuple[date, date]] = {}
     cursor = calendar.next_workday(start)
     for trade in TRADE_ORDER:

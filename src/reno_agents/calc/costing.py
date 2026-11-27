@@ -13,6 +13,17 @@ from reno_agents.inventory.schema import InventoryItem, LaborRate
 
 _HUNDRED = Decimal("100")
 _ZERO = Decimal("0")
+# A measured quantity above this (sq ft, linear ft, each) is a data error, not a unit.
+MAX_MEASURED_QTY = Decimal("10000000")
+
+
+def _check_measured(measured: Decimal) -> None:
+    if not isinstance(measured, Decimal) or not measured.is_finite():
+        raise ValueError("measured quantity must be a finite Decimal")
+    if measured <= 0:
+        raise ValueError("measured quantity must be greater than 0")
+    if measured > MAX_MEASURED_QTY:
+        raise ValueError(f"measured quantity cannot exceed {MAX_MEASURED_QTY}")
 
 
 class MissingEstimate(Exception):
@@ -33,11 +44,10 @@ def purchase_quantity(measured: Decimal, coverage_per_unit: Decimal, waste_pct: 
     Computed as ``measured * (100 + waste) / (coverage * 100)`` so an exact whole number is not
     nudged over it by a repeating decimal.
     """
-    if measured <= 0:
-        raise ValueError("measured quantity must be greater than 0")
-    if coverage_per_unit <= 0:
+    _check_measured(measured)
+    if not coverage_per_unit.is_finite() or coverage_per_unit <= 0:
         raise ValueError("coverage_per_unit must be greater than 0")
-    if waste_pct < 0:
+    if not waste_pct.is_finite() or waste_pct < 0:
         raise ValueError("waste_pct cannot be negative")
     units = measured * (_HUNDRED + waste_pct) / (coverage_per_unit * _HUNDRED)
     return int(units.to_integral_value(rounding=ROUND_CEILING))
@@ -55,12 +65,13 @@ def line_cost(
     the PM's ``estimate`` stands in for materials and is required.
     Labor = rate x measured quantity (rate is per unit of work), or 0 with no labor rate.
     """
+    _check_measured(measured_qty)
     labor_cost = to_money(labor.rate * measured_qty) if labor is not None else to_money(_ZERO)
     if item is None:
         if estimate is None:
             raise MissingEstimate("a procurement-needed line needs a PM cost estimate")
-        if estimate < 0:
-            raise ValueError("estimate cannot be negative")
+        if not isinstance(estimate, Decimal) or not estimate.is_finite() or estimate < 0:
+            raise ValueError("estimate must be a finite, non-negative Decimal")
         materials = to_money(estimate)
         return LineCost(None, materials, labor_cost, to_money(materials + labor_cost))
     qty = purchase_quantity(measured_qty, item.coverage_per_unit, item.waste_pct)

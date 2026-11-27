@@ -4,7 +4,7 @@ The web app owns stage changes; agents never move a unit on their own. This modu
 "given this stage and this event, what is the next stage?" and refuses anything else.
 """
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from decimal import Decimal
 
 from reno_agents.domain.enums import Event, Stage
@@ -16,7 +16,9 @@ class TransitionContext:
 
     scope_total: Decimal | None = None
     approval_threshold: Decimal | None = None
-    rooms_missing_after_media: frozenset[str] = field(default_factory=frozenset)
+    # None means "not checked": work cannot be marked complete until the caller says which
+    # rooms with approved scope still lack an 'after' photo or video (empty set = none).
+    rooms_missing_after_media: frozenset[str] | None = None
 
 
 class InvalidTransition(Exception):
@@ -57,13 +59,26 @@ _GUARDED: frozenset[tuple[Stage, Event]] = frozenset(
 _NO_CONTEXT = TransitionContext()
 
 
+def _coerce(stage: Stage | str, event: Event | str | None = None) -> tuple[Stage, Event | None]:
+    try:
+        st = Stage(stage)
+        ev = Event(event) if event is not None else None
+    except ValueError as exc:
+        raise ValueError(f"unknown stage or event: {exc}") from None
+    return st, ev
+
+
 def allowed_events(stage: Stage) -> frozenset[Event]:
     """Events that may be applied to a unit in ``stage`` (guards may still refuse them)."""
-    return frozenset(ev for (st, ev) in (*_STATIC, *_GUARDED) if st is stage)
+    st, _ = _coerce(stage)
+    return frozenset(ev for (s, ev) in (*_STATIC, *_GUARDED) if s is st)
 
 
 def transition(stage: Stage, event: Event, ctx: TransitionContext = _NO_CONTEXT) -> Stage:
     """Return the stage after ``event``, or raise ``InvalidTransition`` / ``GuardFailed``."""
+    st, ev = _coerce(stage, event)
+    assert ev is not None
+    stage, event = st, ev
     key = (stage, event)
     if key in _STATIC:
         return _STATIC[key]
@@ -76,12 +91,15 @@ def transition(stage: Stage, event: Event, ctx: TransitionContext = _NO_CONTEXT)
 
 def _submit_scope(ctx: TransitionContext) -> Stage:
     reasons = []
-    if ctx.scope_total is None:
+    total, threshold = ctx.scope_total, ctx.approval_threshold
+    if total is None:
         reasons.append("scope total is required to submit a scope")
-    elif ctx.scope_total < 0:
-        reasons.append("scope total cannot be negative")
-    if ctx.approval_threshold is None:
+    elif not isinstance(total, Decimal) or not total.is_finite() or total < 0:
+        reasons.append("scope total must be a finite, non-negative Decimal")
+    if threshold is None:
         reasons.append("approval threshold is required to submit a scope")
+    elif not isinstance(threshold, Decimal) or not threshold.is_finite() or threshold < 0:
+        reasons.append("approval threshold must be a finite, non-negative Decimal")
     if reasons:
         raise GuardFailed(reasons)
     assert ctx.scope_total is not None and ctx.approval_threshold is not None
@@ -92,6 +110,8 @@ def _submit_scope(ctx: TransitionContext) -> Stage:
 
 
 def _complete_work(ctx: TransitionContext) -> Stage:
+    if ctx.rooms_missing_after_media is None:
+        raise GuardFailed(["the 'after' media check per room is required to complete work"])
     if ctx.rooms_missing_after_media:
         rooms = ", ".join(sorted(ctx.rooms_missing_after_media))
         raise GuardFailed([f"no 'after' media yet for rooms with approved scope: {rooms}"])

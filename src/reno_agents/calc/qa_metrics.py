@@ -1,26 +1,37 @@
 """The four QA deviation checks and the overall QA result (design §5.4).
 
-Verdicts are judged against the PM-recorded *installed* item, so an approved swap arrives here as
-``done_as_specified``; ``done_different_item`` means what is visible does not match what was
-recorded, which is a deviation. "Not verifiable" lines are left out of the percentages and force
-"Needs evidence" unless a metric is already over the threshold.
+Verdicts are judged against the PM-recorded *installed* item. An approved swap may arrive as
+``done_as_specified`` or ``done_different_item``; neither is a deviation. ``installed_mismatch``
+(what is visible is not the recorded item), ``partial`` and ``missing`` are. "Not verifiable"
+lines are left out of the percentages and force "Needs evidence" unless a metric is already over
+the threshold.
+
+Percentages are rounded *up* to the next hundredth, so a value just over the threshold (10.004%)
+is never rounded down onto it and passed.
 """
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date
-from decimal import ROUND_HALF_UP, Decimal
+from datetime import date, timedelta
+from decimal import ROUND_CEILING, Decimal
 
 from reno_agents.calc.schedule import WorkCalendar
 from reno_agents.domain.enums import LineVerdict, QaResult
 
 _HUNDRED = Decimal("100")
 _PCT = Decimal("0.01")
-_DEVIATING = frozenset({LineVerdict.PARTIAL, LineVerdict.MISSING, LineVerdict.DONE_DIFFERENT_ITEM})
+_DEVIATING = frozenset({LineVerdict.PARTIAL, LineVerdict.MISSING, LineVerdict.INSTALLED_MISMATCH})
+_ONE_DAY = timedelta(days=1)
 
 
 def _pct(part: Decimal, whole: Decimal) -> Decimal:
-    return (part / whole * _HUNDRED).quantize(_PCT, rounding=ROUND_HALF_UP)
+    return (part / whole * _HUNDRED).quantize(_PCT, rounding=ROUND_CEILING)
+
+
+def _finite(name: str, value: Decimal) -> Decimal:
+    if not isinstance(value, Decimal) or not value.is_finite():
+        raise ValueError(f"{name} must be a finite Decimal")
+    return value
 
 
 @dataclass(frozen=True)
@@ -28,6 +39,13 @@ class QaLine:
     line_id: str
     approved_cost: Decimal
     verdict: LineVerdict
+
+    def __post_init__(self) -> None:
+        # Model output may arrive as plain strings; coerce or refuse rather than miscount.
+        object.__setattr__(self, "verdict", LineVerdict(self.verdict))
+        cost = _finite("approved_cost", self.approved_cost)
+        if cost < 0:
+            raise ValueError("approved_cost cannot be negative")
 
 
 @dataclass(frozen=True)
@@ -57,7 +75,8 @@ def photo_deviation(resolved_as_planned: Sequence[bool | None]) -> Decimal:
 
 def budget_deviation(actual: Decimal, approved: Decimal) -> Decimal:
     """(actual - approved) / approved, as a percent. Negative means under budget."""
-    if approved <= 0:
+    _finite("actual", actual)
+    if _finite("approved", approved) <= 0:
         raise ValueError("approved budget must be greater than 0")
     return _pct(actual - approved, approved)
 
@@ -69,7 +88,8 @@ def timeline_deviation(
     if planned_finish < planned_start:
         raise ValueError("planned finish is before planned start")
     late = calendar.working_days_between(planned_finish, actual_finish)
-    duration = max(1, calendar.working_days_between(planned_start, planned_finish) + 1)
+    # Workdays in [planned_start, planned_finish]; a weekend start date does not count.
+    duration = max(1, calendar.working_days_between(planned_start - _ONE_DAY, planned_finish))
     return _pct(Decimal(late), Decimal(duration))
 
 
@@ -87,6 +107,8 @@ def qa_outcome(
     if not_verifiable < 0:
         raise ValueError("not_verifiable cannot be negative")
     metrics = (("scope", scope), ("photo", photo), ("budget", budget), ("timeline", timeline))
+    for name, value in (*metrics, ("threshold", threshold)):
+        _finite(name, value)
     flags = tuple(name for name, value in metrics if value > threshold)
     if flags:
         result = QaResult.FLAGGED

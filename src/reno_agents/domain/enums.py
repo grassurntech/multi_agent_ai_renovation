@@ -67,10 +67,13 @@ class Severity(StrEnum):
 
 
 class LineVerdict(StrEnum):
-    """QA judgement of one approved scope line."""
+    """QA judgement of one approved scope line, against the PM-recorded installed item."""
 
     DONE_AS_SPECIFIED = "done_as_specified"
+    # An approved swap (installed item differs from the planned primary): not a deviation.
     DONE_DIFFERENT_ITEM = "done_different_item"
+    # What is visible does not match the recorded installed item: a deviation.
+    INSTALLED_MISMATCH = "installed_mismatch"
     PARTIAL = "partial"
     MISSING = "missing"
     NOT_VERIFIABLE = "not_verifiable"

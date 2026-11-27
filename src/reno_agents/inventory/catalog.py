@@ -58,10 +58,12 @@ class Catalog:
         ]
 
     def groups(self, today: date) -> dict[str, list[InventoryItem]]:
-        """Active items keyed by substitution group."""
+        """Active items keyed by substitution group (case-insensitive, first spelling seen)."""
+        names: dict[str, str] = {}
         out: dict[str, list[InventoryItem]] = {}
         for item in self.active(today):
-            out.setdefault(item.substitution_group, []).append(item)
+            name = names.setdefault(item.substitution_group.casefold(), item.substitution_group)
+            out.setdefault(name, []).append(item)
         return out
 
     def pick(self, substitution_group: str, preferred_grade: Grade, today: date) -> Pick | None:

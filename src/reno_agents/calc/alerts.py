@@ -3,7 +3,12 @@
 A unit is escalated to its PM when its projected finish slips more than ``slip_alert_days``
 calendar days past plan, projected spend exceeds the approved budget by more than
 ``overspend_alert_pct``, or a task has been blocked more than ``blocked_alert_days`` days.
-The same escalation is re-sent only when it gets worse, so PMs do not learn to ignore alerts.
+The same escalation is re-sent only when it gets worse, so PMs do not learn to ignore alerts:
+
+- slip / overspend are keyed per unit and re-sent when the magnitude grows. When an approved
+  change request re-baselines the plan, the caller clears the unit's sent slip/overspend entries.
+- blocked is keyed per blocking episode (task id + date it became blocked) and sent once per
+  episode: a task blocked again later is a new escalation, a task still blocked is not re-sent.
 """
 
 from collections.abc import Iterable, Mapping
@@ -21,7 +26,7 @@ _TENTH = Decimal("0.1")
 class Escalation:
     unit_id: str
     kind: EscalationKind
-    key: str  # "unit" for slip / overspend; the task id for blocked
+    key: str  # "unit" for slip / overspend; "<task id>@<blocked since>" for blocked
     magnitude: Decimal  # days for slip / blocked, percent over budget for overspend
     message: str
 
@@ -77,7 +82,7 @@ def evaluate_unit(
                 Escalation(
                     unit_id,
                     EscalationKind.BLOCKED,
-                    task_id,
+                    f"{task_id}@{blocked_since[task_id].isoformat()}",
                     Decimal(days),
                     f"Task {task_id} has been blocked for {days} days.",
                 )
@@ -89,10 +94,10 @@ def filter_new(
     candidates: Iterable[Escalation],
     last_sent: Mapping[tuple[str, EscalationKind, str], Decimal],
 ) -> list[Escalation]:
-    """Keep escalations never sent before, or worse than the last one sent."""
+    """Keep escalations never sent before; re-send slip / overspend only when worse."""
     out = []
     for e in candidates:
         previous = last_sent.get((e.unit_id, e.kind, e.key))
-        if previous is None or e.magnitude > previous:
+        if previous is None or (e.kind is not EscalationKind.BLOCKED and e.magnitude > previous):
             out.append(e)
     return out
