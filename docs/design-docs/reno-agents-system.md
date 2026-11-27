@@ -235,7 +235,11 @@ cabinetry, every substitution group having at least 3 approved items — plus ma
   created by a CLI command. SSO is a later option, not in v1.
 - **Notifications:** email via SMTP settings. A notification interface so Slack/Teams can be added
   later.
-- **Deploy:** Docker Compose for local / single server; a written guide for Google Cloud Run.
+- **Packaging:** **uv** for dependencies, lockfile and running commands (matches the repo's
+  `docs/references/uv-llms.txt`).
+- **Deploy:** a **Nixpacks**-compatible build (`nixpacks.toml`, including ffmpeg as a system
+  package; matches `docs/references/nixpacks-llms.txt`) so it deploys to Nixpacks-based hosts; a
+  Dockerfile + Docker Compose for local / single server; a written guide for Google Cloud Run.
 - **Media storage:** local disk by default, behind an interface so Google Cloud Storage / S3 can be
   configured.
 
@@ -338,7 +342,7 @@ API only (nobody can use it on its own), **simple web app** (chosen).
 - One portfolio summary email rather than one per unit; default 07:00.
 - QA deviation formulas in §5.4; reviewer cannot be that unit's PM.
 - Stack (FastAPI, Jinja2 + HTMX, SQLAlchemy/SQLite, APScheduler, ffmpeg); built-in auth; SMTP email.
-- Apache-2.0 licence; Docker Compose + Cloud Run guide.
+- Apache-2.0 licence; uv; Nixpacks + Docker Compose + Cloud Run guide.
 - EXIF/GPS stripping; upload size limits; video frame caps.
 
 ## 14. Left to the builder

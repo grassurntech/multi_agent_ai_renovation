@@ -10,6 +10,7 @@ This file is the **table of contents** for the project. Read it first, then open
 | **Design docs** | | |
 | [docs/design-docs/index.md](docs/design-docs/index.md) | Index of all design docs + status | Looking for a past design decision |
 | [docs/design-docs/core-beliefs.md](docs/design-docs/core-beliefs.md) | Guiding principles and accepted trade-offs | Any non-obvious design choice |
+| [docs/design-docs/reno-agents-system.md](docs/design-docs/reno-agents-system.md) | Full system design: roles, unit lifecycle, the four agents, media, inventory, web app | Building or changing any agent or workflow |
 | **Execution plans** | | |
 | [docs/PLANS.md](docs/PLANS.md) | How plans are written and moved | Starting multi-step work |
 | [docs/exec-plans/active/](docs/exec-plans/active/) | Plans in progress | Resuming work |
