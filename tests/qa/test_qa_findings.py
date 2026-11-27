@@ -12,6 +12,7 @@ from reno_agents.calc.alerts import evaluate_unit
 from reno_agents.calc.costing import line_cost
 from reno_agents.calc.qa_metrics import (
     QaLine,
+    QaOutcome,
     budget_deviation,
     qa_outcome,
     scope_deviation,
@@ -37,10 +38,32 @@ PAINT = (
 Z = Decimal("0")
 
 
+def run_qa(
+    lines: "list[QaLine]",
+    *,
+    photo_results: "tuple[bool | None, ...] | list[bool | None]" = (True,),
+    budget: Decimal = Decimal(0),
+    timeline: Decimal = Decimal(0),
+    threshold: Decimal = Decimal("10"),
+) -> "QaOutcome":
+    """Split test lines into approved-scope records (costs) and model verdicts."""
+    return qa_outcome(
+        approved_costs={ln.line_id: ln.approved_cost for ln in lines},
+        verdicts={ln.line_id: ln.verdict for ln in lines},
+        photo_results=photo_results,
+        budget=budget,
+        timeline=timeline,
+        threshold=threshold,
+    )
+
+
+DONE = [QaLine("done", Decimal("100"), LineVerdict.DONE_AS_SPECIFIED)]
+
+
 # M1: strict ">" threshold is applied after rounding to 2 dp, so 10.004% is not "over 10%".
 def test_qa_budget_over_ten_percent_by_fraction_is_flagged():
     actual, approved = Decimal("11000.40"), Decimal("10000")  # +10.004%
-    o = qa_outcome(lines=[], photo=Z, budget=budget_deviation(actual, approved), timeline=Z)
+    o = run_qa(DONE, budget=budget_deviation(actual, approved))
     assert o.result is QaResult.FLAGGED  # actual: PASS (budget_deviation -> 10.00)
 
 
@@ -57,7 +80,7 @@ def test_qa_budget_and_overspend_alert_agree_on_same_numbers():
         blocked_since={},
     )
     assert [e.kind for e in alerted] == [EscalationKind.OVERSPEND]  # alert fires (unrounded)
-    qa = qa_outcome(lines=[], photo=Z, budget=budget_deviation(actual, approved), timeline=Z)
+    qa = run_qa(DONE, budget=budget_deviation(actual, approved))
     assert "budget" in qa.flags  # actual: () -- QA says within 10%
 
 
@@ -66,7 +89,7 @@ def test_qa_scope_over_ten_percent_by_fraction_is_flagged():
         QaLine("a", Decimal("10004"), LineVerdict.MISSING),
         QaLine("b", Decimal("89996"), LineVerdict.DONE_AS_SPECIFIED),
     ]  # 10.004%
-    o = qa_outcome(lines=lines, photo=Z, budget=Z, timeline=Z)
+    o = run_qa(lines)
     assert o.result is QaResult.FLAGGED  # actual: PASS
 
 

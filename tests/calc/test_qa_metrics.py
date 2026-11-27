@@ -6,6 +6,7 @@ import pytest
 
 from reno_agents.calc.qa_metrics import (
     QaLine,
+    QaOutcome,
     budget_deviation,
     photo_deviation,
     qa_outcome,
@@ -26,6 +27,25 @@ def L(cost: str, v: LineVerdict) -> QaLine:
     return QaLine(f"line-{next(_ids)}", Decimal(cost), v)
 
 
+def run_qa(
+    lines: "list[QaLine]",
+    *,
+    photo_results: "tuple[bool | None, ...] | list[bool | None]" = (True,),
+    budget: Decimal = Decimal(0),
+    timeline: Decimal = Decimal(0),
+    threshold: Decimal = Decimal("10"),
+) -> "QaOutcome":
+    """Split test lines into approved-scope records (costs) and model verdicts."""
+    return qa_outcome(
+        approved_costs={ln.line_id: ln.approved_cost for ln in lines},
+        verdicts={ln.line_id: ln.verdict for ln in lines},
+        photo_results=photo_results,
+        budget=budget,
+        timeline=timeline,
+        threshold=threshold,
+    )
+
+
 def test_scope_deviation_excludes_unverifiable_from_both_sides() -> None:
     lines = [L("900", V.DONE_AS_SPECIFIED), L("100", V.MISSING), L("5000", V.NOT_VERIFIABLE)]
     assert scope_deviation(lines) == Decimal("10.00")
@@ -44,7 +64,7 @@ def test_partial_counts_as_deviation_and_result_rounds_up_to_two_decimals() -> N
 def test_all_unverifiable_gives_zero_and_needs_evidence() -> None:
     lines = [L("100", V.NOT_VERIFIABLE)]
     assert scope_deviation(lines) == Decimal("0")
-    o = qa_outcome(lines=lines, photo=photo_deviation([None]), budget=Z, timeline=Z)
+    o = run_qa(lines, photo_results=[None])
     assert o.result is QaResult.NEEDS_EVIDENCE and o.not_verifiable == 1 and o.scope == Z
 
 
@@ -59,22 +79,23 @@ def test_photo_deviation_counts_unresolved_among_verifiable() -> None:
 
 def test_exactly_ten_percent_passes_just_over_flags() -> None:
     at = [L("10", V.MISSING), L("90", V.DONE_AS_SPECIFIED)]
-    assert qa_outcome(lines=at, photo=Z, budget=Z, timeline=Z).result is QaResult.PASS_
+    assert run_qa(at).result is QaResult.PASS_
     over = [L("1001", V.MISSING), L("8999", V.DONE_AS_SPECIFIED), L("5", V.NOT_VERIFIABLE)]
-    o = qa_outcome(lines=over, photo=Z, budget=Z, timeline=Z)
+    o = run_qa(over)
     assert o.result is QaResult.FLAGGED and o.flags == ("scope",) and o.scope == Decimal("10.01")
 
 
 def test_flags_listed_in_fixed_order() -> None:
     eleven = Decimal("11")
     lines = [L("11", V.MISSING), L("89", V.DONE_AS_SPECIFIED)]
-    o = qa_outcome(lines=lines, photo=eleven, budget=eleven, timeline=eleven)
+    photos = [False] + [True] * 8  # 11.11%
+    o = run_qa(lines, photo_results=photos, budget=eleven, timeline=eleven)
     assert o.flags == ("scope", "photo", "budget", "timeline")
 
 
 def test_threshold_is_a_setting() -> None:
     lines = [L("6", V.MISSING), L("94", V.DONE_AS_SPECIFIED)]
-    o = qa_outcome(lines=lines, photo=Z, budget=Z, timeline=Z, threshold=Decimal("5"))
+    o = run_qa(lines, threshold=Decimal("5"))
     assert o.result is QaResult.FLAGGED
 
 
@@ -103,7 +124,7 @@ def test_timeline_finish_before_start_rejected() -> None:
 
 
 def test_under_budget_is_negative_not_flagged() -> None:
-    o = qa_outcome(lines=[], photo=Z, budget=Decimal("-20"), timeline=Z)
+    o = run_qa([L("100", V.DONE_AS_SPECIFIED)], budget=Decimal("-20"))
     assert o.result is QaResult.PASS_
 
 
@@ -117,3 +138,43 @@ def test_duplicate_line_ids_refused() -> None:
 def test_photo_results_must_be_bool_or_none() -> None:
     with pytest.raises(TypeError):
         photo_deviation(["false"])  # type: ignore[list-item]
+
+
+def test_verdicts_must_match_approved_lines_exactly() -> None:
+    approved = {"kitchen": Decimal("100"), "bath": Decimal("100")}
+    for verdicts in (
+        {"kitchen": V.MISSING},  # a line left out
+        {"kitchen": V.MISSING, "bath": V.DONE_AS_SPECIFIED, "fake": V.DONE_AS_SPECIFIED},
+        {"kitchen": V.MISSING, "bath ": V.DONE_AS_SPECIFIED},  # near-copy of an id
+    ):
+        with pytest.raises(ValueError):
+            qa_outcome(
+                approved_costs=approved,
+                verdicts=verdicts,
+                photo_results=[True],
+                budget=Z,
+                timeline=Z,
+            )
+
+
+def test_costs_come_from_approved_records_not_the_model() -> None:
+    o = qa_outcome(
+        approved_costs={"kitchen": Decimal("100"), "bath": Decimal("100")},
+        verdicts={"kitchen": V.MISSING, "bath": V.DONE_AS_SPECIFIED},
+        photo_results=[True],
+        budget=Z,
+        timeline=Z,
+    )
+    assert o.scope == Decimal("50.00") and o.result is QaResult.FLAGGED
+
+
+def test_unverifiable_photo_forces_needs_evidence() -> None:
+    o = run_qa([L("100", V.DONE_AS_SPECIFIED)], photo_results=[True, None])
+    assert o.result is QaResult.NEEDS_EVIDENCE and o.photos_not_verifiable == 1
+
+
+def test_no_approved_lines_or_no_photo_comparisons_refused() -> None:
+    with pytest.raises(ValueError):
+        run_qa([])
+    with pytest.raises(ValueError):
+        run_qa([L("100", V.DONE_AS_SPECIFIED)], photo_results=[])

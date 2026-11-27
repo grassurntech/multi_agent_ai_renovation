@@ -45,6 +45,9 @@ def evaluate_unit(
     blocked_alert_days: int = 2,
 ) -> list[Escalation]:
     """Every escalation that applies to one unit right now (before dedup)."""
+    for name, value in (("approved_budget", approved_budget), ("projected_spend", projected_spend)):
+        if not isinstance(value, Decimal) or not value.is_finite():
+            raise ValueError(f"{name} must be a finite Decimal")
     out: list[Escalation] = []
 
     slip = (projected_finish - planned_finish).days

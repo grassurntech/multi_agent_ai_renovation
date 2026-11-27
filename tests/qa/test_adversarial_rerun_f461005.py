@@ -42,18 +42,20 @@ class TestQaMetricsBypass:
         # The count is derived from the lines, so a caller cannot pass 0 and get PASS.
         lines = [qa_metrics.QaLine("a", Decimal(1), LineVerdict.NOT_VERIFIABLE)]
         out = qa_metrics.qa_outcome(
-            lines=lines, photo=Decimal(0), budget=Decimal(0), timeline=Decimal(0)
+            approved_costs={ln.line_id: ln.approved_cost for ln in lines},
+            verdicts={ln.line_id: ln.verdict for ln in lines},
+            photo_results=[True],
+            budget=Decimal(0),
+            timeline=Decimal(0),
         )
         assert out.result is QaResult.NEEDS_EVIDENCE and out.not_verifiable == 1
 
     def test_ceiling_rounding_does_not_flag_value_under_threshold(self) -> None:
         # True value 10.001% is under a 10.005% threshold; rounding up must not flag it.
         out = qa_metrics.qa_outcome(
-            lines=[
-                qa_metrics.QaLine("a", Decimal("10.001"), LineVerdict.MISSING),
-                qa_metrics.QaLine("b", Decimal("89.999"), LineVerdict.DONE_AS_SPECIFIED),
-            ],
-            photo=Decimal(0),
+            approved_costs={"a": Decimal("10.001"), "b": Decimal("89.999")},
+            verdicts={"a": LineVerdict.MISSING, "b": LineVerdict.DONE_AS_SPECIFIED},
+            photo_results=[True],
             budget=Decimal(0),
             timeline=Decimal(0),
             threshold=Decimal("10.005"),

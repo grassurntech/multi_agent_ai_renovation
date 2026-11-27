@@ -18,7 +18,6 @@ from reno_agents.calc.money import parse_money, to_money
 from reno_agents.calc.qa_metrics import (
     QaLine,
     budget_deviation,
-    photo_deviation,
     qa_outcome,
     timeline_deviation,
 )
@@ -180,9 +179,12 @@ def test_qa_pipeline_needs_evidence_then_flagged():
         QaLine("b", Decimal("100"), LineVerdict.PARTIAL),
         QaLine("c", Decimal("50"), LineVerdict.NOT_VERIFIABLE),
     ]
+    approved = {ln.line_id: ln.approved_cost for ln in lines}
+    verdicts = {ln.line_id: ln.verdict for ln in lines}
     o = qa_outcome(
-        lines=lines,
-        photo=photo_deviation([True, True, None]),
+        approved_costs=approved,
+        verdicts=verdicts,
+        photo_results=[True, True, None],
         budget=budget_deviation(Decimal("10500"), Decimal("10000")),
         timeline=timeline_deviation(
             date(2026, 11, 30), date(2026, 12, 11), date(2026, 12, 11), cal
@@ -190,8 +192,9 @@ def test_qa_pipeline_needs_evidence_then_flagged():
     )
     assert o.result is QaResult.NEEDS_EVIDENCE and o.flags == () and o.not_verifiable == 1
     o2 = qa_outcome(
-        lines=lines,
-        photo=photo_deviation([False, True, True, True, True, True, True, True, True]),  # 11.11
+        approved_costs=approved,
+        verdicts=verdicts,
+        photo_results=[False, True, True, True, True, True, True, True, True],  # 11.11%
         budget=Decimal("0"),
         timeline=timeline_deviation(
             date(2026, 11, 30), date(2026, 12, 11), date(2026, 12, 14), cal

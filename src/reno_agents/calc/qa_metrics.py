@@ -3,16 +3,17 @@
 Verdicts are judged against the PM-recorded *installed* item. An approved swap may arrive as
 ``done_as_specified`` or ``done_different_item``; neither is a deviation. ``installed_mismatch``
 (what is visible is not the recorded item), ``partial`` and ``missing`` are. "Not verifiable"
-lines are left out of the percentages and force "Needs evidence" unless a metric is already over
-the threshold.
+lines and photo comparisons are left out of the percentages and force "Needs evidence" unless a
+metric is already over the threshold.
 
-Percentages are rounded *up* to the next hundredth, so a value just over the threshold (10.004%)
-is never rounded down onto it and passed. ``qa_outcome`` derives the scope figure and the
-not-verifiable count from the lines themselves and compares the unrounded scope figure, so a
-caller cannot pass a count or figure that disagrees with the lines.
+The QA agent supplies only judgements. ``qa_outcome`` takes line costs from the approved-scope
+records and requires exactly one verdict per approved line, so a model cannot add, drop, repeat
+or re-price lines. Percentages are compared unrounded and shown rounded *up* to the next
+hundredth, so a value just over the threshold is never shown as exactly on it.
 """
 
-from collections.abc import Sequence
+import unicodedata
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
 from decimal import ROUND_CEILING, Decimal
@@ -22,6 +23,7 @@ from reno_agents.domain.enums import LineVerdict, QaResult
 
 _HUNDRED = Decimal("100")
 _PCT = Decimal("0.01")
+_ZERO = Decimal("0")
 _DEVIATING = frozenset({LineVerdict.PARTIAL, LineVerdict.MISSING, LineVerdict.INSTALLED_MISMATCH})
 _ONE_DAY = timedelta(days=1)
 
@@ -34,20 +36,32 @@ def _raw_pct(part: Decimal, whole: Decimal) -> Decimal:
 
 
 def _round_pct(value: Decimal) -> Decimal:
+    if value == 0:
+        return _ZERO
     try:
         return value.quantize(_PCT, rounding=ROUND_CEILING)
     except ArithmeticError as exc:  # too large to hold at 2 decimal places
         raise ValueError(f"percentage is out of range: {exc!r}") from None
 
 
-def _pct(part: Decimal, whole: Decimal) -> Decimal:
-    return _round_pct(_raw_pct(part, whole))
-
-
 def _finite(name: str, value: Decimal) -> Decimal:
     if not isinstance(value, Decimal) or not value.is_finite():
         raise ValueError(f"{name} must be a finite Decimal")
     return value
+
+
+def _sum(values: Sequence[Decimal]) -> Decimal:
+    try:
+        return sum(values, _ZERO)
+    except ArithmeticError as exc:
+        raise ValueError(f"costs are too large to add up: {exc!r}") from None
+
+
+def _id_key(line_id: str) -> str:
+    """Comparison key for ids: ignores case, surrounding spaces, width and invisible characters."""
+    text = unicodedata.normalize("NFKC", line_id)
+    text = "".join(ch for ch in text if unicodedata.category(ch) != "Cf")
+    return text.strip().casefold()
 
 
 @dataclass(frozen=True)
@@ -57,10 +71,11 @@ class QaLine:
     verdict: LineVerdict
 
     def __post_init__(self) -> None:
+        if not isinstance(self.line_id, str) or not _id_key(self.line_id):
+            raise ValueError("line_id must be non-empty text")
         # Model output may arrive as plain strings; coerce or refuse rather than miscount.
         object.__setattr__(self, "verdict", LineVerdict(self.verdict))
-        cost = _finite("approved_cost", self.approved_cost)
-        if cost < 0:
+        if _finite("approved_cost", self.approved_cost) < 0:
             raise ValueError("approved_cost cannot be negative")
 
 
@@ -68,20 +83,51 @@ class QaLine:
 class QaOutcome:
     result: QaResult
     flags: tuple[str, ...]  # metrics over the threshold: "scope", "photo", "budget", "timeline"
-    not_verifiable: int  # lines judged "not verifiable from media"
+    not_verifiable: int  # approved lines judged "not verifiable from media"
     scope: Decimal  # scope deviation percent, as shown
+    photo: Decimal  # photo deviation percent, as shown
+    photos_not_verifiable: int  # before/after comparisons that could not be judged
+
+
+def judge_lines(
+    approved_costs: Mapping[str, Decimal], verdicts: Mapping[str, LineVerdict | str]
+) -> list[QaLine]:
+    """Pair each approved line (cost from the records) with its single QA verdict.
+
+    Raises ``ValueError`` if there are no approved lines, or the verdict ids are not exactly the
+    approved ids (a line left out, an unknown line, or a near-copy of an id).
+    """
+    if not approved_costs:
+        raise ValueError("there are no approved lines to judge")
+    missing = sorted(set(approved_costs) - set(verdicts))
+    unknown = sorted(set(verdicts) - set(approved_costs))
+    if missing or unknown:
+        problems = []
+        if missing:
+            problems.append(f"no verdict for approved lines: {', '.join(missing)}")
+        if unknown:
+            problems.append(f"verdicts for lines not in the approved scope: {unknown!r}")
+        raise ValueError("; ".join(problems))
+    lines = [QaLine(i, approved_costs[i], LineVerdict(verdicts[i])) for i in approved_costs]
+    _check_unique(lines)
+    return lines
+
+
+def _check_unique(lines: Sequence[QaLine]) -> None:
+    keys = [_id_key(ln.line_id) for ln in lines]
+    if len(set(keys)) != len(keys):
+        raise ValueError("each approved line may be judged only once (duplicate line_id)")
 
 
 def _scope_raw(lines: Sequence[QaLine]) -> Decimal:
-    ids = [ln.line_id for ln in lines]
-    if len(set(ids)) != len(ids):
-        raise ValueError("each approved line may be judged only once (duplicate line_id)")
+    _check_unique(lines)
     verifiable = [ln for ln in lines if ln.verdict is not LineVerdict.NOT_VERIFIABLE]
-    whole = sum((ln.approved_cost for ln in verifiable), Decimal(0))
+    deviating = [ln for ln in verifiable if ln.verdict in _DEVIATING]
+    whole = _sum([ln.approved_cost for ln in verifiable])
     if whole == 0:
-        return Decimal("0")
-    part = sum((ln.approved_cost for ln in verifiable if ln.verdict in _DEVIATING), Decimal(0))
-    return _raw_pct(part, whole)
+        # Zero-cost lines: fall back to counting lines so missing work is still seen.
+        return _raw_pct(Decimal(len(deviating)), Decimal(len(verifiable))) if verifiable else _ZERO
+    return _raw_pct(_sum([ln.approved_cost for ln in deviating]), whole)
 
 
 def scope_deviation(lines: Sequence[QaLine]) -> Decimal:
@@ -89,19 +135,22 @@ def scope_deviation(lines: Sequence[QaLine]) -> Decimal:
 
     Each approved line must appear once; repeating a line would dilute the figure.
     """
-    raw = _scope_raw(lines)
-    return Decimal("0") if raw == 0 else _round_pct(raw)
+    return _round_pct(_scope_raw(lines))
 
 
-def photo_deviation(resolved_as_planned: Sequence[bool | None]) -> Decimal:
-    """Percent of verifiable issues not resolved as planned; ``None`` = not verifiable."""
+def _photo_raw(resolved_as_planned: Sequence[bool | None]) -> Decimal:
     for r in resolved_as_planned:
         if r is not None and not isinstance(r, bool):
             raise TypeError(f"photo results must be True, False or None, got {r!r}")
     verifiable = [r for r in resolved_as_planned if r is not None]
     if not verifiable:
-        return Decimal("0")
-    return _pct(Decimal(sum(1 for r in verifiable if not r)), Decimal(len(verifiable)))
+        return _ZERO
+    return _raw_pct(Decimal(sum(1 for r in verifiable if not r)), Decimal(len(verifiable)))
+
+
+def photo_deviation(resolved_as_planned: Sequence[bool | None]) -> Decimal:
+    """Percent of verifiable issues not resolved as planned; ``None`` = not verifiable."""
+    return _round_pct(_photo_raw(resolved_as_planned))
 
 
 def budget_deviation(actual: Decimal, approved: Decimal) -> Decimal:
@@ -109,7 +158,11 @@ def budget_deviation(actual: Decimal, approved: Decimal) -> Decimal:
     _finite("actual", actual)
     if _finite("approved", approved) <= 0:
         raise ValueError("approved budget must be greater than 0")
-    return _pct(actual - approved, approved)
+    try:
+        over = actual - approved
+    except ArithmeticError as exc:
+        raise ValueError(f"budget deviation cannot be computed: {exc!r}") from None
+    return _round_pct(_raw_pct(over, approved))
 
 
 def timeline_deviation(
@@ -121,34 +174,52 @@ def timeline_deviation(
     late = calendar.working_days_between(planned_finish, actual_finish)
     # Workdays in [planned_start, planned_finish]; a weekend start date does not count.
     duration = max(1, calendar.working_days_between(planned_start - _ONE_DAY, planned_finish))
-    return _pct(Decimal(late), Decimal(duration))
+    return _round_pct(_raw_pct(Decimal(late), Decimal(duration)))
 
 
 def qa_outcome(
     *,
-    lines: Sequence[QaLine],
-    photo: Decimal,
+    approved_costs: Mapping[str, Decimal],
+    verdicts: Mapping[str, LineVerdict | str],
+    photo_results: Sequence[bool | None],
     budget: Decimal,
     timeline: Decimal,
     threshold: Decimal = Decimal("10"),
 ) -> QaOutcome:
-    """Flagged if any metric is over the threshold; else Needs evidence if any line could not be
-    verified; else Pass. The QA reviewer still makes the final call.
+    """Flagged if any metric is over the threshold; else Needs evidence if any line or photo
+    comparison could not be verified; else Pass. The QA reviewer still makes the final call.
 
-    The scope figure and the not-verifiable count come from ``lines``; ``photo``, ``budget`` and
-    ``timeline`` are the percentages from the functions above.
+    ``approved_costs`` comes from the approved-scope records (line id -> approved cost),
+    ``verdicts`` and ``photo_results`` from the QA agent, ``budget`` and ``timeline`` from
+    ``budget_deviation`` / ``timeline_deviation`` over the recorded actuals.
     """
+    lines = judge_lines(approved_costs, verdicts)
+    if not photo_results:
+        raise ValueError("there are no before/after photo comparisons to judge")
     scope_raw = _scope_raw(lines)
-    not_verifiable = sum(1 for ln in lines if ln.verdict is LineVerdict.NOT_VERIFIABLE)
-    metrics = (("scope", scope_raw), ("photo", photo), ("budget", budget), ("timeline", timeline))
-    for name, value in (*metrics, ("threshold", threshold)):
+    photo_raw = _photo_raw(photo_results)
+    for name, value in (("budget", budget), ("timeline", timeline), ("threshold", threshold)):
         _finite(name, value)
+    metrics = (
+        ("scope", scope_raw),
+        ("photo", photo_raw),
+        ("budget", budget),
+        ("timeline", timeline),
+    )
     flags = tuple(name for name, value in metrics if value > threshold)
+    not_verifiable = sum(1 for ln in lines if ln.verdict is LineVerdict.NOT_VERIFIABLE)
+    photos_not_verifiable = sum(1 for r in photo_results if r is None)
     if flags:
         result = QaResult.FLAGGED
-    elif not_verifiable:
+    elif not_verifiable or photos_not_verifiable:
         result = QaResult.NEEDS_EVIDENCE
     else:
         result = QaResult.PASS_
-    scope = Decimal("0") if scope_raw == 0 else _round_pct(scope_raw)
-    return QaOutcome(result, flags, not_verifiable, scope)
+    return QaOutcome(
+        result,
+        flags,
+        not_verifiable,
+        _round_pct(scope_raw),
+        _round_pct(photo_raw),
+        photos_not_verifiable,
+    )
